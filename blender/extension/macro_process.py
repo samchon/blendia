@@ -15,6 +15,8 @@ from .server import bridge
 
 MAX_TEXT_BYTES = 262144
 MAX_LOG_BYTES = 65536
+# The producer's 64 KiB frame bound includes its final LF byte.
+MAX_EVENT_BYTES = 65535
 
 
 class MacroLauncher:
@@ -34,6 +36,15 @@ class MacroLauncher:
         self.enabled = False
         self.secret = ""
         self.output_tail = ""
+        self.event_buffer = ""
+        self.raw_line = False
+        self.protocol_error = False
+        self.job_snapshot = None
+        self.job_terminal = False
+        self.log_cursor = -1
+        self.log_gap_pending = False
+        self.gap_next_cursor = 0
+        self.log_stream = None
         self.timer = self.tick
 
     @property
@@ -58,6 +69,134 @@ class MacroLauncher:
         count = len(text) if final else max(0, len(text) - max(0, len(self.secret) - 1))
         self.output_tail = text[count:]
         self.append(text[:count])
+
+    def consume_output(self, text, final=False):
+        """Frame bounded machine events while preserving raw bootstrap diagnostics."""
+        self.event_buffer += text
+        while "\n" in self.event_buffer:
+            line, self.event_buffer = self.event_buffer.split("\n", 1)
+            if self.raw_line:
+                self.append_output(line + "\n")
+                self.raw_line = False
+            elif len(line.encode("utf-8")) > MAX_EVENT_BYTES:
+                self.protocol_error = True
+                self.append_output(line + "\n")
+            else:
+                self.consume_line(line)
+        if len(self.event_buffer.encode("utf-8")) > MAX_EVENT_BYTES:
+            self.protocol_error = True
+            self.append_output(self.event_buffer)
+            self.event_buffer = ""
+            self.raw_line = True
+        if final:
+            if self.event_buffer:
+                if self.raw_line:
+                    self.append_output(self.event_buffer)
+                else:
+                    self.consume_line(self.event_buffer)
+            self.event_buffer = ""
+            self.append_output("", final=True)
+
+    def consume_line(self, line):
+        try:
+            event = json.loads(line)
+        except (ValueError, RecursionError):
+            if line.lstrip().startswith('{"type"'):
+                self.protocol_error = True
+            self.append_output(line + "\n")
+            return
+        if not isinstance(event, dict) or event.get("type") not in ("snapshot", "log", "gap", "terminal"):
+            if isinstance(event, dict) and "type" in event and not isinstance(event["type"], str):
+                self.protocol_error = True
+            self.append_output(line + "\n")
+            return
+        try:
+            kind = event["type"]
+            if kind in {"snapshot", "terminal"}:
+                self.consume_snapshot(event.get("snapshot"), terminal=kind == "terminal")
+                return
+            snapshot = self.job_snapshot
+            if (snapshot is None or self.job_terminal or event.get("id") != snapshot["id"]
+                    or event.get("ownerId") != snapshot["ownerId"]):
+                raise ValueError("Job identity or event order changed")
+            if kind == "gap":
+                earliest, following = event.get("earliestCursor"), event.get("nextCursor")
+                if not self.cursor(earliest) or not self.cursor(following) or following < earliest:
+                    raise ValueError("Invalid captured-log gap")
+                self.truncated = True
+                self.log_gap_pending = True
+                self.gap_next_cursor = max(self.gap_next_cursor, following)
+                self.append_output("[Earlier captured job output unavailable]\n")
+                return
+            entry = event.get("entry")
+            if (not isinstance(entry, dict) or not self.cursor(entry.get("cursor"))
+                    or entry.get("stream") not in {"stdout", "stderr"}
+                    or not isinstance(entry.get("text"), str)
+                    or len(entry["text"].encode("utf-8")) > 2048
+                    or entry["cursor"] <= self.log_cursor):
+                raise ValueError("Invalid captured-log entry")
+            self.truncated = self.truncated or entry["cursor"] > self.log_cursor + 1
+            if entry["cursor"] > self.log_cursor + 1 and not self.log_gap_pending:
+                self.protocol_error = True
+            self.log_gap_pending = False
+            self.log_cursor = entry["cursor"]
+            if self.log_stream != entry["stream"]:
+                self.append_output(f"\n[{entry['stream']}]\n")
+                self.log_stream = entry["stream"]
+            self.append_output(entry["text"])
+        except (ValueError, TypeError, KeyError):
+            self.protocol_error = True
+            self.append_output("[Invalid job event; outcome cannot be confirmed]\n" + line + "\n")
+
+    @staticmethod
+    def cursor(value):
+        return type(value) is int and 0 <= value <= 9007199254740991
+
+    def consume_snapshot(self, snapshot, terminal=False):
+        """Trust a job terminal only after validating its identity and lifecycle."""
+        phases = ("starting", "running", "draining", "terminal")
+        if (not isinstance(snapshot, dict) or snapshot.get("phase") not in phases
+                or not all(isinstance(snapshot.get(key), str) and 0 < len(snapshot[key]) <= 128
+                           and snapshot[key].isascii() and snapshot[key].isprintable()
+                           for key in ("id", "ownerId"))
+                or type(snapshot.get("metadataTruncated")) is not bool
+                or not self.cursor(snapshot.get("earliestCursor"))
+                or not self.cursor(snapshot.get("tailCursor"))
+                or snapshot["earliestCursor"] > snapshot["tailCursor"]):
+            raise ValueError("Invalid job snapshot")
+        previous = self.job_snapshot
+        if (self.job_terminal or previous is not None and (
+                snapshot["id"] != previous["id"] or snapshot["ownerId"] != previous["ownerId"]
+                or phases.index(snapshot["phase"]) < phases.index(previous["phase"]))):
+            raise ValueError("Job identity or phase changed unexpectedly")
+        outcome = snapshot.get("outcome")
+        if outcome is not None and outcome not in {"exited", "launch-failed", "unknown"}:
+            raise ValueError("Invalid job outcome")
+        if terminal and (snapshot["phase"] != "terminal" or outcome is None):
+            raise ValueError("Missing terminal job outcome")
+        result, diagnostic = snapshot.get("result"), snapshot.get("diagnostic")
+        if result is not None and not isinstance(result, dict):
+            raise ValueError("Invalid job result")
+        if diagnostic is not None and (not isinstance(diagnostic, str)
+                or len(diagnostic.encode("utf-8")) > 4096):
+            raise ValueError("Invalid job diagnostic")
+        if outcome == "exited" and (not isinstance(result, dict)
+                or "code" not in result or "signal" not in result
+                or result.get("code") is None and result.get("signal") is None
+                or (result.get("code") is not None and type(result["code"]) is not int)
+                or (result.get("signal") is not None and not isinstance(result["signal"], str))):
+            raise ValueError("Missing script exit result")
+        if terminal and snapshot["tailCursor"] != max(self.log_cursor + 1, self.gap_next_cursor):
+            raise ValueError("Terminal arrived with missing captured-log entries")
+        self.job_snapshot = snapshot
+        self.job_terminal = terminal
+        self.status = f"Script job {snapshot['phase']}" + (f": {outcome}" if outcome else "")
+        if terminal:
+            self.append_output(self.status + "\n")
+            if diagnostic:
+                self.append_output(diagnostic + "\n")
+            if result is not None:
+                self.append_output("Script result: " + json.dumps(result, ensure_ascii=False) + "\n")
 
     def launch(self, settings, text=None, origin=None):
         """Snapshot settings and Text before launching; never retain Blender RNA."""
@@ -98,7 +237,7 @@ class MacroLauncher:
         if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
             raise ValueError("Arguments must be a JSON array of strings")
 
-        command = [*prefix, str(cli), "run-text" if text is not None else "run", "--cwd", str(cwd)]
+        command = [*prefix, str(cli), "run-text" if text is not None else "run", "--jsonl", "--cwd", str(cwd)]
         if settings.tsconfig.strip():
             command += ["--project", settings.tsconfig.strip()]
         self.log = ""
@@ -108,6 +247,15 @@ class MacroLauncher:
         self.uncertain = False
         self.secret = bridge.token
         self.output_tail = ""
+        self.event_buffer = ""
+        self.raw_line = False
+        self.protocol_error = False
+        self.job_snapshot = None
+        self.job_terminal = False
+        self.log_cursor = -1
+        self.log_gap_pending = False
+        self.gap_next_cursor = 0
+        self.log_stream = None
         if self.input_path is not None:
             self.append(f"Earlier private input remains at {self.input_path}\n")
             self.input_path = None
@@ -143,7 +291,7 @@ class MacroLauncher:
             self.output_fd = read_fd
             read_fd = None
             self.decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
-            self.status = "Running TypeScript"
+            self.status = "Bootstrapping CLI; script job not reported"
             self.append(f"Project: {cwd}\nSource: {source}\n")
             if origin:
                 self.append(f"Text snapshot: {origin}; staged sibling identity applies\n")
@@ -192,7 +340,7 @@ class MacroLauncher:
                 self.uncertain = True
             self.output_fd = None
             if self.decoder is not None:
-                self.append_output(self.decoder.decode(b"", final=True), final=True)
+                self.consume_output(self.decoder.decode(b"", final=True), final=True)
                 self.decoder = None
 
     def tick(self):
@@ -215,7 +363,7 @@ class MacroLauncher:
                 self.close_output()
                 break
             budget -= len(data)
-            self.append_output(self.decoder.decode(data))
+            self.consume_output(self.decoder.decode(data))
 
         try:
             code = self.process.poll()
@@ -239,8 +387,10 @@ class MacroLauncher:
             if self.output_fd is None:
                 self.exit_code = code
                 interrupted = code < 0 or (os.name == "nt" and code >= 0x80000000)
-                self.uncertain = self.uncertain or interrupted
-                self.status = f"CLI exited with code {code}"
+                outcome = self.job_snapshot.get("outcome") if self.job_terminal else None
+                self.uncertain = (self.uncertain or interrupted or self.protocol_error
+                                  or outcome not in {"exited", "launch-failed"})
+                self.status = f"Script job {outcome or 'unconfirmed'}; CLI exited with code {code}"
                 if self.uncertain:
                     self.status += "; descendant state unknown"
                     if self.input_path is not None:

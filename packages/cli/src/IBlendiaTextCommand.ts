@@ -10,4 +10,6 @@ export interface IBlendiaTextCommand {
 
   /** Explicit UTF-8 input path relative to options.cwd; its creator retains ownership. */
   inputFile: string;
+  /** Capture and render bounded JSONL observations; absent preserves inherited streams. */
+  jsonl?: true;
 }
