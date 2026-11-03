@@ -1,18 +1,24 @@
 import { type IEvidenceConfig } from "@wrtnlabs/evidence";
 
-/** Require evidence only for the SDK implementation boundaries that need it. */
+/** Select real SDK implementation boundaries; ordinary DTOs and scalar helpers have no blanket claims. */
 export default {
   severity: "error",
   claims: [
     {
-      name: "connection and protocol implementation",
+      name: "client, connection, and feature validation",
       type: "typescript",
       files: [
         "src/BlenderClient.ts",
+        "src/internal/BlenderConnection.ts",
         "src/internal/BlenderFrameDecoder.ts",
         "src/internal/BlenderProtocol.ts",
+        "src/internal/BlenderSceneProtocol.ts",
+        "src/internal/BlenderMaterialProtocol.ts",
+        "src/internal/BlenderCameraProtocol.ts",
+        "src/internal/BlenderRenderProtocol.ts",
+        "src/internal/BlenderArtifactProtocol.ts",
       ],
-      symbol: ["type", "function"],
+      symbol: "type",
       reference: {
         type: "markdown",
         root: "../../.agents/skills",
@@ -21,9 +27,14 @@ export default {
       },
     },
     {
-      name: "bounded connection and frame processing",
+      name: "bounded socket, mesh, and chunk processing",
       type: "typescript",
-      files: ["src/BlenderClient.ts", "src/internal/BlenderFrameDecoder.ts"],
+      files: [
+        "src/internal/BlenderConnection.ts",
+        "src/internal/BlenderFrameDecoder.ts",
+        "src/internal/BlenderSceneProtocol.ts",
+        "src/internal/BlenderArtifactProtocol.ts",
+      ],
       symbol: "type",
       reference: {
         type: "markdown",

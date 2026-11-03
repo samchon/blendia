@@ -12,8 +12,12 @@ from pathlib import Path
 import bpy
 from bpy.app.handlers import persistent
 
+from .artifacts import ArtifactStore
 from .commands import SceneCommands
+from .native_render import NativeRender
 from .protocol import BridgeError, ID_PATTERN, MAX_FRAME_BYTES, decode_frame, encode_frame, require_keys
+from .save_scene import save_blend_copy
+from .scene_data import SCENE_METHODS
 
 
 class Connection:
@@ -43,6 +47,9 @@ class Bridge:
         self.descriptor_path = ""
         self.loading = False
         self.last_error = ""
+        self.enabled = False
+        self.artifacts = ArtifactStore()
+        self.renders = NativeRender(self, self.artifacts)
         self.commands = SceneCommands(self)
 
         # Keep the exact bound-method object for timer registration and teardown.
@@ -58,13 +65,16 @@ class Bridge:
             return
         if bpy.app.version < (5, 2, 0):
             raise RuntimeError("Blendia requires Blender 5.2 or newer")
-        self.session_id = str(uuid.uuid4())
+        session_id = str(uuid.uuid4())
+        self.renders.start_session(session_id)
+        self.session_id = session_id
         self.token = secrets.token_urlsafe(32)
         self.generation = 0
         self.loading = False
         self.last_error = ""
-        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener = None
         try:
+            listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
                 listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
             listener.bind(("127.0.0.1", 0))
@@ -84,15 +94,26 @@ class Bridge:
                 json.dump(descriptor, file, separators=(",", ":"))
             bpy.app.timers.register(self.timer, first_interval=0.01, persistent=True)
         except Exception:
-            listener.close()
+            if listener is not None:
+                listener.close()
             self.stop()
             raise
 
     def stop(self):
         """Close owned sockets and remove only the current session's descriptor."""
-        if bpy.app.timers.is_registered(self.timer):
-            bpy.app.timers.unregister(self.timer)
-        self.close_transport()
+        try:
+            self.renders.retire()
+        finally:
+            try:
+                if bpy.app.timers.is_registered(self.timer):
+                    bpy.app.timers.unregister(self.timer)
+            finally:
+                self.close_transport()
+
+    def render_retired(self):
+        """Keep invalidation callbacks alive until a disabled native job retires."""
+        if not self.enabled:
+            unregister_handlers()
 
     def close_transport(self):
         """Release session resources without bpy access, including interpreter exit."""
@@ -138,6 +159,7 @@ class Bridge:
             return None
         deadline = time.monotonic() + 0.005
         try:
+            self.renders.tick()
             for _ in range(4):
                 try:
                     stream, _ = self.listener.accept()
@@ -238,17 +260,32 @@ class Bridge:
                 self.owner = connection
                 result = {"protocolVersion": 1, "sessionId": self.session_id,
                           "generation": self.generation, "blenderVersion": bpy.app.version_string,
-                          "capabilities": ["cube.create", "object.get", "object.setTransform"]}
+                          "capabilities": ["cube.create", "object.get", "object.setTransform", *SCENE_METHODS,
+                                           "render.start", "render.get", "artifact.read", "artifact.release",
+                                           "artifact.save", "scene.saveBlendCopy"]}
             else:
                 if not connection.authenticated:
                     raise BridgeError("UNAUTHORIZED", "Authenticate with hello first")
                 self.require_identity(request)
-                if self.loading or bpy.app.is_job_running("RENDER"):
-                    raise BridgeError("BUSY", "Blender is loading or rendering")
+                readable = method in ("render.get", "artifact.read", "artifact.release", "disconnect")
+                if self.loading or ((self.renders.busy or bpy.app.is_job_running("RENDER")) and not readable):
+                    raise BridgeError("BUSY", "Blender is loading, rendering, or finalizing output")
                 if method == "disconnect":
                     require_keys(params, ())
                     result = {}
                     connection.closing = True
+                elif method == "render.start":
+                    result = self.renders.start(params)
+                elif method == "render.get":
+                    result = self.renders.get(params)
+                elif method == "artifact.read":
+                    result = self.artifacts.read(params)
+                elif method == "artifact.release":
+                    result = self.artifacts.release(params)
+                elif method == "artifact.save":
+                    result = self.artifacts.save(params)
+                elif method == "scene.saveBlendCopy":
+                    result = save_blend_copy(self, params)
                 else:
                     result = self.commands.execute(method, params)
             return self.envelope(connection, identifier, {"ok": True, "result": result})
@@ -275,6 +312,7 @@ bridge = Bridge()
 @persistent
 def before_load(*_):
     """Invalidate queued handles before Blender releases the old Main database."""
+    bridge.renders.invalidate("Blender is loading another file")
     bridge.loading = True
     bridge.generation += 1
 
@@ -288,6 +326,7 @@ def after_load(*_):
 @persistent
 def history_changed(*_):
     """Conservatively expire handles whenever Blender restores undo or redo data."""
+    bridge.renders.invalidate("Blender undo or redo changed scene history")
     bridge.generation += 1
 
 
@@ -306,6 +345,8 @@ def register_handlers():
 
 def unregister_handlers():
     """Remove owned handlers without clearing another add-on's callback list."""
+    if bridge.renders.busy:
+        return
     for name, callback in HANDLERS:
         handlers = getattr(bpy.app.handlers, name, None)
         if handlers is not None and callback in handlers:

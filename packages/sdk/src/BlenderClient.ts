@@ -1,447 +1,360 @@
-import { Socket } from "node:net";
-
 import { BlenderError } from "./BlenderError";
+import type { BlenderRenderJob } from "./BlenderRenderJob";
+import type { IBlenderAreaLightOptions } from "./IBlenderAreaLightOptions";
+import type { IBlenderAreaLightSnapshot } from "./IBlenderAreaLightSnapshot";
+import type { IBlenderArtifactChunk } from "./IBlenderArtifactChunk";
+import type { IBlenderArtifactHandle } from "./IBlenderArtifactHandle";
+import type { IBlenderArtifactReadOptions } from "./IBlenderArtifactReadOptions";
+import type { IBlenderArtifactSaveOptions } from "./IBlenderArtifactSaveOptions";
+import type { IBlenderCameraOptions } from "./IBlenderCameraOptions";
+import type { IBlenderCameraSnapshot } from "./IBlenderCameraSnapshot";
 import type { IBlenderConnectionOptions } from "./IBlenderConnectionOptions";
 import type { IBlenderCubeOptions } from "./IBlenderCubeOptions";
+import type { IBlenderMaterialAssignment } from "./IBlenderMaterialAssignment";
+import type { IBlenderMaterialOptions } from "./IBlenderMaterialOptions";
+import type { IBlenderMaterialSnapshot } from "./IBlenderMaterialSnapshot";
+import type { IBlenderMeshOptions } from "./IBlenderMeshOptions";
+import type { IBlenderMeshSnapshot } from "./IBlenderMeshSnapshot";
 import type { IBlenderObjectHandle } from "./IBlenderObjectHandle";
 import type { IBlenderObjectSnapshot } from "./IBlenderObjectSnapshot";
 import type { IBlenderObjectTransform } from "./IBlenderObjectTransform";
+import type { IBlenderRenderHandle } from "./IBlenderRenderHandle";
+import type { IBlenderRenderOptions } from "./IBlenderRenderOptions";
+import type { IBlenderSaveOptions } from "./IBlenderSaveOptions";
+import type { IBlenderSavedFile } from "./IBlenderSavedFile";
+import type { IBlenderSceneQuery } from "./IBlenderSceneQuery";
+import type { IBlenderSceneSnapshot } from "./IBlenderSceneSnapshot";
 import type { IBlenderSession } from "./IBlenderSession";
-import { BlenderFrameDecoder } from "./internal/BlenderFrameDecoder";
+import { BlenderArtifactProtocol } from "./internal/BlenderArtifactProtocol";
+import { BlenderCameraProtocol } from "./internal/BlenderCameraProtocol";
+import { BlenderConnection } from "./internal/BlenderConnection";
+import { BlenderMaterialProtocol } from "./internal/BlenderMaterialProtocol";
 import { BlenderProtocol } from "./internal/BlenderProtocol";
-import type { IBlenderPendingRequest } from "./internal/IBlenderPendingRequest";
-import type { IBlenderWireResponse } from "./internal/IBlenderWireResponse";
+import { BlenderRenderProtocol } from "./internal/BlenderRenderProtocol";
+import { BlenderSceneProtocol } from "./internal/BlenderSceneProtocol";
+import { BlenderValue } from "./internal/BlenderValue";
 
 /**
- * Exclusive async connection to one Blender bridge; every operation is explicit and mutations are never automatically replayed.
+ * Explicit async scene, native GUI render, and persistent-output operations on one exclusive bridge connection.
  *
- * @evidence contracts/common.md#principled-implementation A version-one authenticated handshake establishes session and generation; framed responses correlate one pending decimal request id before any typed result is returned.
- * @evidence contracts/common.md#clear-and-simple-design Socket ownership and request state live in this client; Blender executes the bounded allowlist and the runtime owns project process launch.
- * @evidence contracts/common.md#prohibited-implementation-shortcuts Timeout or connection loss after a sent mutation is OUTCOME_UNKNOWN, never a fabricated rollback or retry.
- * @evidence contracts/common.md#meaningful-documentation Only local cube, object readback, and transform operations are exposed; disconnect releases ownership without removing scene data.
- * @evidence contracts/performance.md#bound-retention-and-release-resources One socket, one decoder of at most 1MiB incomplete payload, and one request timeout are retained; disconnect and all terminal transport failures destroy the socket and reject pending work.
+ * @evidence contracts/common.md#principled-implementation Feature input codecs validate arguments before transmission and feature result codecs validate detached readback; object/material references require the current lifetime while render/artifact references require the same session.
+ * @evidence contracts/common.md#clear-and-simple-design This facade composes feature codecs with one internal connection; the connection exclusively owns sockets, pending work, timeouts, and unknown-outcome handling.
+ * @evidence contracts/common.md#prohibited-implementation-shortcuts Missing capabilities reject before transmission, mutations are never replayed, and a lost native start retains the caller's supplied render identity.
+ * @evidence contracts/common.md#meaningful-documentation Scene mutation, native rendering, artifact retention, explicit file publication, and disconnect are separate operations with no transaction or cancellation promise.
  */
 export class BlenderClient {
-  /** Socket exclusively owned by this client. */
-  private readonly socket: Socket;
+  /** The sole transport owner, shared by every feature operation. */
+  private readonly connection: BlenderConnection;
 
-  /** Incremental decoder owned for the socket's lifetime. */
-  private readonly decoder: BlenderFrameDecoder = new BlenderFrameDecoder();
-
-  /** Per-connection and per-response timeout in milliseconds. */
-  private readonly timeoutMs: number;
-
-  /** Authenticated identity; null exists only during the private handshake. */
-  private identity: IBlenderSession | null = null;
-
-  /** Monotonic per-connection request counter, without an idempotency promise. */
-  private nextId: bigint = 0n;
-
-  /** Terminal sockets cannot be reconnected or reused. */
-  private closed: boolean = false;
-
-  /** Exactly one pending response; concurrent calls fail before transmission. */
-  private pending: IBlenderPendingRequest | null = null;
-
-  /** Attach listeners before connecting so no socket failure is unobserved. */
-  private constructor(socket: Socket, timeoutMs: number) {
-    this.socket = socket;
-    this.timeoutMs = timeoutMs;
-    this.socket.on("data", (chunk: Buffer): void => this.receive(chunk));
-    this.socket.on("error", (error: Error): void => {
-      this.fail("CONNECTION_CLOSED", "Blender connection failed.", error);
-    });
-    this.socket.on("close", (): void => {
-      this.fail("CONNECTION_CLOSED", "Blender connection closed.");
-    });
+  /** Only the authenticated factory can expose a client. */
+  private constructor(connection: BlenderConnection) {
+    this.connection = connection;
   }
 
-  /**
-   * Authenticate a loopback connection using explicit credentials or BLENDIA_PORT and BLENDIA_TOKEN.
-   *
-   * @evidence contracts/common.md#principled-implementation Options are validated before a socket connects to 127.0.0.1; a hello request checks protocol one, returned identity, and advertised required methods.
-   * @evidence contracts/common.md#clear-and-simple-design This factory returns only after authentication; callers cannot obtain a half-initialized client.
-   * @evidence contracts/common.md#prohibited-implementation-shortcuts No endpoint guessing, dependency injection of a fake socket, or retry changes the target Blender.
-   * @evidence contracts/common.md#meaningful-documentation The timeout applies independently to connecting and each response; it does not stop Blender execution.
-   */
+  /** Authenticate loopback using explicit options or BLENDIA_PORT/BLENDIA_TOKEN; old baseline bridges remain supported. */
   public static async connect(
     options: IBlenderConnectionOptions = {},
   ): Promise<BlenderClient> {
-    if (
-      options === null ||
-      typeof options !== "object" ||
-      Array.isArray(options)
-    )
-      throw new BlenderError(
-        "INVALID_ARGUMENT",
-        "Connection options must be an object.",
-      );
-    const portInput: unknown =
-      options.port === undefined ? process.env.BLENDIA_PORT : options.port;
-    const port: number =
-      typeof portInput === "string" && /^[0-9]+$/.test(portInput)
-        ? Number(portInput)
-        : typeof portInput === "number"
-          ? portInput
-          : NaN;
-    const token: unknown =
-      options.token === undefined ? process.env.BLENDIA_TOKEN : options.token;
-    const timeoutMs: number =
-      options.timeoutMs === undefined ? 30000 : options.timeoutMs;
-    if (!Number.isInteger(port) || port < 1 || port > 65535)
-      throw new BlenderError(
-        "INVALID_ARGUMENT",
-        "Specify a TCP port from 1 through 65535 or set BLENDIA_PORT.",
-      );
-    if (typeof token !== "string" || token.length === 0)
-      throw new BlenderError(
-        "INVALID_ARGUMENT",
-        "Specify the session token or set BLENDIA_TOKEN.",
-      );
-    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2147483647)
-      throw new BlenderError(
-        "INVALID_ARGUMENT",
-        "timeoutMs must be an integer from 1 through 2147483647.",
-      );
-    const socket: Socket = new Socket();
-    const client: BlenderClient = new BlenderClient(socket, timeoutMs);
-    try {
-      const connection: Promise<void> = new Promise(
-        (resolve: () => void, reject: (error: BlenderError) => void): void => {
-          const timer: NodeJS.Timeout = setTimeout((): void => {
-            socket.removeListener("error", onError);
-            reject(
-              new BlenderError("TIMEOUT", "Timed out connecting to Blender."),
-            );
-            socket.destroy();
-          }, timeoutMs);
-
-          /** Dispose of the connection timer when Node reports an error. */
-          const onError: (error: Error) => void = (error: Error): void => {
-            clearTimeout(timer);
-            reject(
-              new BlenderError(
-                "CONNECTION_CLOSED",
-                "Could not connect to Blender.",
-                "none",
-                { cause: error },
-              ),
-            );
-          };
-          socket.once("error", onError);
-          socket.once("connect", (): void => {
-            clearTimeout(timer);
-            socket.removeListener("error", onError);
-            resolve();
-          });
-          socket.connect({ host: "127.0.0.1", port });
-        },
-      );
-      await connection;
-      const result: unknown = await client.request(
-        "hello",
-        { protocolVersion: 1, token },
-        false,
-      );
-      const session: IBlenderSession = BlenderProtocol.session(result);
-      if (
-        !["cube.create", "object.get", "object.setTransform"].every(
-          (method: string): boolean => session.capabilities.includes(method),
-        )
-      )
-        throw new BlenderError(
-          "PROTOCOL_MISMATCH",
-          "Blender bridge does not provide the required object methods.",
-        );
-      client.identity = session;
-      return client;
-    } catch (error) {
-      client.fail("CONNECTION_CLOSED", "Blender handshake did not complete.");
-      throw error;
-    }
+    return new BlenderClient(await BlenderConnection.connect(options));
   }
 
-  /** Copy authenticated identity so callers cannot mutate the client's generation or capability list. */
+  /** Copy the authenticated identity and advertised methods without exposing mutable transport state. */
   public get session(): IBlenderSession {
-    if (this.identity === null)
-      throw new BlenderError(
-        "CONNECTION_CLOSED",
-        "Blender handshake has not completed.",
-      );
-    return { ...this.identity, capabilities: [...this.identity.capabilities] };
+    return this.connection.session;
   }
 
-  /**
-   * Create one cube and return its actual assigned Blender identity and local properties.
-   *
-   * @evidence contracts/common.md#principled-implementation Cube parameters are validated before sending; the typed result must contain this connection's identity and finite local transform.
-   * @evidence contracts/common.md#clear-and-simple-design The method is one explicit bridge mutation, without a scene proxy or queued action graph.
-   * @evidence contracts/common.md#prohibited-implementation-shortcuts Repeated calls create new objects; a lost reply is never retried.
-   * @evidence contracts/common.md#meaningful-documentation Positive size is limited to 1e20 Blender units and defaults to two; name collisions are reflected in the returned snapshot.
-   */
+  /** Create a cube with positive size at most 1e20 and return its actual assigned name. */
   public async createCube(
     options: IBlenderCubeOptions = {},
   ): Promise<IBlenderObjectSnapshot> {
-    return this.objectRequest(
+    return this.connection.execute(
       "cube.create",
       BlenderProtocol.cube(options),
       true,
+      (value: unknown, session: IBlenderSession): IBlenderObjectSnapshot =>
+        BlenderProtocol.snapshot(value, session),
     );
   }
 
-  /**
-   * Read fresh local properties for an exact object handle from this data lifetime.
-   *
-   * @evidence contracts/common.md#principled-implementation The handle's session and generation are checked locally before fresh bridge lookup and snapshot validation.
-   * @evidence contracts/common.md#clear-and-simple-design Reads return data rather than a live object wrapper.
-   * @evidence contracts/common.md#prohibited-implementation-shortcuts Stale handles never fall back to an object with the same name.
-   * @evidence contracts/common.md#meaningful-documentation The result describes local properties and does not evaluate world geometry.
-   */
+  /** Read fresh local properties for the exact object identity, without name fallback. */
   public async getObject(
     object: IBlenderObjectHandle,
   ): Promise<IBlenderObjectSnapshot> {
-    const handle: IBlenderObjectHandle = this.checkHandle(object);
-    return this.objectRequest("object.get", { object: handle }, false);
-  }
-
-  /**
-   * Apply a nonempty partial local transform and return fresh Blender readback.
-   *
-   * @evidence contracts/common.md#principled-implementation Every supplied finite triple within absolute 1e20 and the object's session handle are validated before the mutation request is written.
-   * @evidence contracts/common.md#clear-and-simple-design The target and partial transform form one explicit bridge operation.
-   * @evidence contracts/common.md#prohibited-implementation-shortcuts Missing components are preserved; invalid vectors and empty updates are rejected rather than partially sent.
-   * @evidence contracts/common.md#meaningful-documentation Rotation updates use XYZ Euler radians; translation and scale remain local properties.
-   */
-  public async setTransform(
-    update: IBlenderObjectTransform,
-  ): Promise<IBlenderObjectSnapshot> {
-    if (update === null || typeof update !== "object")
-      throw new BlenderError(
-        "INVALID_ARGUMENT",
-        "Transform update must be an object.",
-      );
-    const object: IBlenderObjectHandle = this.checkHandle(update.object);
-    return this.objectRequest(
-      "object.setTransform",
-      { object, ...BlenderProtocol.transform(update) },
-      true,
+    const handle: IBlenderObjectHandle = BlenderValue.object(
+      object,
+      this.session,
+    );
+    return this.connection.execute(
+      "object.get",
+      { object: handle },
+      false,
+      (value: unknown, session: IBlenderSession): IBlenderObjectSnapshot =>
+        this.objectResult(value, session, handle),
     );
   }
 
-  /**
-   * Release this client's bridge ownership and always close its local socket after the disconnect attempt.
-   *
-   * @evidence contracts/common.md#principled-implementation A live idle client sends disconnect and waits for its correlated reply; already closed clients require no further transport work.
-   * @evidence contracts/common.md#clear-and-simple-design Disconnect closes transport only and is separate from scene mutation or process termination.
-   * @evidence contracts/common.md#prohibited-implementation-shortcuts An in-flight request causes BUSY rather than pretending its Blender operation has been cancelled.
-   * @evidence contracts/common.md#meaningful-documentation Scene data remains in Blender, and closing the connection does not promise rollback.
-   */
-  public async disconnect(): Promise<void> {
-    if (this.closed) return;
-    if (this.pending !== null)
-      throw new BlenderError(
-        "BUSY",
-        "Wait for the pending Blender operation before disconnecting.",
-      );
-    try {
-      const result: unknown = await this.request("disconnect", {}, false);
-      if (
-        result === null ||
-        typeof result !== "object" ||
-        Array.isArray(result) ||
-        Object.keys(result).length !== 0
-      )
-        throw new BlenderError(
-          "INVALID_RESPONSE",
-          "Disconnect response must be an empty object.",
-        );
-    } finally {
-      this.fail("CONNECTION_CLOSED", "Blender client disconnected.");
-    }
-  }
-
-  /** Require the caller's handle to belong to this exact authenticated data lifetime. */
-  private checkHandle(value: IBlenderObjectHandle): IBlenderObjectHandle {
-    const handle: IBlenderObjectHandle = BlenderProtocol.handle(value);
-    const session: IBlenderSession = this.session;
-    if (
-      handle.sessionId !== session.sessionId ||
-      handle.generation !== session.generation
-    )
-      throw new BlenderError(
-        "STALE_HANDLE",
-        "Object handle belongs to another Blender session or generation.",
-      );
-    return handle;
-  }
-
-  /** A malformed mutation readback cannot establish whether scene changes completed. */
-  private async objectRequest(
-    method: string,
-    params: unknown,
-    mutation: boolean,
+  /** Apply a nonempty local transform; XYZ Euler radians and finite absolute-1e20 components remain unchanged. */
+  public async setTransform(
+    update: IBlenderObjectTransform,
   ): Promise<IBlenderObjectSnapshot> {
-    const result: unknown = await this.request(method, params, mutation);
-    try {
-      return BlenderProtocol.snapshot(result, this.session);
-    } catch (error) {
-      this.fail(
-        "INVALID_RESPONSE",
-        "Blender returned an invalid object snapshot.",
-      );
-      throw new BlenderError(
-        mutation ? "OUTCOME_UNKNOWN" : "INVALID_RESPONSE",
-        "Blender returned an invalid object snapshot.",
-        mutation ? "possible" : "none",
-        { cause: error },
-      );
-    }
+    const r: Record<string, unknown> = BlenderValue.record(update);
+    const object: IBlenderObjectHandle = BlenderValue.object(
+      r.object,
+      this.session,
+    );
+    return this.connection.execute(
+      "object.setTransform",
+      { object, ...BlenderProtocol.transform(update) },
+      true,
+      (value: unknown, session: IBlenderSession): IBlenderObjectSnapshot =>
+        this.objectResult(value, session, object),
+    );
   }
 
-  /** Encode before writing and retain exactly one request; IDs correlate but never make retries safe. */
-  private request(
-    method: string,
-    params: unknown,
-    mutation: boolean,
-  ): Promise<unknown> {
-    if (this.closed)
-      return Promise.reject(
-        new BlenderError("CONNECTION_CLOSED", "Blender client is closed."),
-      );
-    if (this.pending !== null)
-      return Promise.reject(
-        new BlenderError("BUSY", "Only one Blender operation may be pending."),
-      );
-    const id: string = (++this.nextId).toString();
-    if (id.length > 20)
-      return Promise.reject(
-        new BlenderError(
-          "REQUEST_LIMIT",
-          "Reconnect after exhausting the request identifier range.",
-        ),
-      );
-    const frame: Buffer = BlenderFrameDecoder.encode({
-      id,
-      method,
+  /** Observe a current UID-ordered scene page; later pages may reflect intervening GUI changes. */
+  public async inspectScene(
+    query: IBlenderSceneQuery = {},
+  ): Promise<IBlenderSceneSnapshot> {
+    const params: IBlenderSceneQuery = BlenderSceneProtocol.query(query);
+    return this.connection.execute(
+      "scene.inspect",
       params,
-      ...(this.identity === null
-        ? {}
-        : {
-            sessionId: this.identity.sessionId,
-            generation: this.identity.generation,
-          }),
-    });
-    return new Promise<unknown>(
-      (
-        resolve: (value: unknown) => void,
-        reject: (error: BlenderError) => void,
-      ): void => {
-        const timer: NodeJS.Timeout = setTimeout((): void => {
-          this.fail("TIMEOUT", "Timed out waiting for the Blender operation.");
-        }, this.timeoutMs);
-        this.pending = { id, mutation, timer, resolve, reject };
-        try {
-          this.socket.write(frame);
-        } catch (error) {
-          this.fail(
-            "CONNECTION_CLOSED",
-            "Could not send the Blender operation.",
-            error,
+      false,
+      (value: unknown, session: IBlenderSession): IBlenderSceneSnapshot =>
+        BlenderSceneProtocol.scene(
+          value,
+          session,
+          params.limit === undefined ? 50 : params.limit,
+        ),
+    );
+  }
+
+  /** Create one bounded bulk mesh without silently repairing invalid topology. */
+  public async createMesh(
+    options: IBlenderMeshOptions,
+  ): Promise<IBlenderMeshSnapshot> {
+    const params: IBlenderMeshOptions = BlenderSceneProtocol.mesh(options);
+    return this.connection.execute(
+      "mesh.create",
+      params,
+      true,
+      (value: unknown, session: IBlenderSession): IBlenderMeshSnapshot => {
+        const result: IBlenderMeshSnapshot = BlenderSceneProtocol.meshSnapshot(
+          value,
+          session,
+        );
+        if (
+          result.vertexCount !== params.vertices.length ||
+          result.polygonCount !== params.faces.length
+        )
+          throw new BlenderError(
+            "INVALID_RESPONSE",
+            "Created topology differs from the requested mesh.",
           );
-        }
+        return result;
       },
     );
   }
 
-  /** Validate complete messages and surface stale-generation server errors before invalidating the connection. */
-  private receive(chunk: Buffer): void {
-    try {
-      for (const value of this.decoder.push(chunk)) {
-        const response: IBlenderWireResponse = BlenderProtocol.response(value);
-        const pending: typeof this.pending = this.pending;
-        if (pending === null || response.id !== pending.id)
-          throw new BlenderError(
-            "INVALID_RESPONSE",
-            "Blender response does not match the pending request.",
-          );
-        if (
-          (this.identity !== null || response.ok) &&
-          (typeof response.sessionId !== "string" ||
-            typeof response.generation !== "number")
-        )
-          throw new BlenderError(
-            "INVALID_RESPONSE",
-            "Authenticated response is missing Blender identity.",
-          );
-        if (response.ok === false) {
-          clearTimeout(pending.timer);
-          this.pending = null;
-          pending.reject(
-            new BlenderError(
-              response.error.code,
-              response.error.message,
-              response.error.effects,
-            ),
-          );
-          if (
-            this.identity !== null &&
-            (response.sessionId !== this.identity.sessionId ||
-              response.generation !== this.identity.generation)
-          )
-            this.fail("SESSION_CHANGED", "Blender data lifetime changed.");
-          continue;
-        }
-        if (this.identity === null) {
-          const session: IBlenderSession = BlenderProtocol.session(
-            response.result,
-          );
-          if (
-            session.sessionId !== response.sessionId ||
-            session.generation !== response.generation
-          )
-            throw new BlenderError(
-              "INVALID_RESPONSE",
-              "Handshake identity differs from its response envelope.",
-            );
-        } else if (
-          response.sessionId !== this.identity.sessionId ||
-          response.generation !== this.identity.generation
-        )
-          throw new BlenderError(
-            "INVALID_RESPONSE",
-            "Blender data lifetime changed during the operation.",
-          );
-        clearTimeout(pending.timer);
-        this.pending = null;
-        pending.resolve(response.result);
-      }
-    } catch (error) {
-      this.fail(
-        error instanceof BlenderError ? error.code : "INVALID_RESPONSE",
-        error instanceof BlenderError
-          ? error.message
-          : "Blender sent an invalid response.",
-        error,
-      );
-    }
+  /** Create an owned opaque Principled material from scene-linear RGB and bounded factors. */
+  public async createMaterial(
+    options: IBlenderMaterialOptions,
+  ): Promise<IBlenderMaterialSnapshot> {
+    return this.connection.execute(
+      "material.create",
+      BlenderMaterialProtocol.material(options),
+      true,
+      (value: unknown, session: IBlenderSession): IBlenderMaterialSnapshot =>
+        BlenderMaterialProtocol.snapshot(value, session),
+    );
   }
 
-  /** Terminal transport failure rejects pending work conservatively and releases all live transport resources. */
-  private fail(code: string, message: string, cause?: unknown): void {
-    this.closed = true;
-    const pending: typeof this.pending = this.pending;
-    this.pending = null;
-    if (pending !== null) {
-      clearTimeout(pending.timer);
-      pending.reject(
-        new BlenderError(
-          pending.mutation ? "OUTCOME_UNKNOWN" : code,
-          message,
-          pending.mutation ? "possible" : "none",
-          { cause },
-        ),
+  /** Replace all material slots/face indices only on a local single-user bounded mesh; shared data is rejected. */
+  public async assignMaterial(
+    assignment: IBlenderMaterialAssignment,
+  ): Promise<IBlenderObjectSnapshot> {
+    const params: IBlenderMaterialAssignment =
+      BlenderMaterialProtocol.assignment(assignment, this.session);
+    return this.connection.execute(
+      "object.assignMaterial",
+      params,
+      true,
+      (value: unknown, session: IBlenderSession): IBlenderObjectSnapshot =>
+        this.objectResult(value, session, params.object),
+    );
+  }
+
+  /** Create an aimed unparented camera; setActive:true permanently selects it for subsequent render/save. */
+  public async createCamera(
+    options: IBlenderCameraOptions,
+  ): Promise<IBlenderCameraSnapshot> {
+    return this.connection.execute(
+      "camera.create",
+      BlenderCameraProtocol.camera(options),
+      true,
+      (value: unknown, session: IBlenderSession): IBlenderCameraSnapshot =>
+        BlenderCameraProtocol.cameraSnapshot(value, session),
+    );
+  }
+
+  /** Create an aimed square area light using scene-linear color and explicit world placement. */
+  public async createAreaLight(
+    options: IBlenderAreaLightOptions,
+  ): Promise<IBlenderAreaLightSnapshot> {
+    return this.connection.execute(
+      "light.createArea",
+      BlenderCameraProtocol.light(options),
+      true,
+      (value: unknown, session: IBlenderSession): IBlenderAreaLightSnapshot =>
+        BlenderCameraProtocol.lightSnapshot(value, session),
+    );
+  }
+
+  /** Start native GUI rendering with a caller-known UUID; response loss is not permission to repeat the start. */
+  public async startRender(
+    options: IBlenderRenderOptions,
+  ): Promise<BlenderRenderJob> {
+    const params: IBlenderRenderOptions =
+      BlenderRenderProtocol.options(options);
+    const handle: IBlenderRenderHandle = {
+      sessionId: this.session.sessionId,
+      renderId: params.renderId,
+    };
+    return this.connection.execute(
+      "render.start",
+      params,
+      true,
+      (value: unknown, session: IBlenderSession): BlenderRenderJob => {
+        const result: BlenderRenderJob = BlenderRenderProtocol.job(
+          value,
+          session,
+          handle,
+        );
+        if (
+          result.width !== params.width ||
+          result.height !== params.height ||
+          result.startGeneration !== session.generation
+        )
+          throw new BlenderError(
+            "INVALID_RESPONSE",
+            "Render invocation differs from the requested settings.",
+          );
+        return result;
+      },
+    );
+  }
+
+  /** Observe native state, including after an explicit reconnect; this does not cancel or replay the render. */
+  public async getRender(
+    render: IBlenderRenderHandle,
+  ): Promise<BlenderRenderJob> {
+    const handle: IBlenderRenderHandle = BlenderRenderProtocol.handle(
+      render,
+      this.session,
+    );
+    return this.connection.execute(
+      "render.get",
+      { renderId: handle.renderId },
+      false,
+      (value: unknown, session: IBlenderSession): BlenderRenderJob =>
+        BlenderRenderProtocol.job(value, session, handle),
+    );
+  }
+
+  /** Read at most 192 KiB of canonical-base64 PNG data with validated offsets and EOF. */
+  public async readArtifact(
+    options: IBlenderArtifactReadOptions,
+  ): Promise<IBlenderArtifactChunk> {
+    const params: IBlenderArtifactReadOptions = BlenderArtifactProtocol.read(
+      options,
+      this.session,
+    );
+    return this.connection.execute(
+      "artifact.read",
+      {
+        artifactId: params.artifact.artifactId,
+        offset: params.offset,
+        maxBytes: params.maxBytes,
+      },
+      false,
+      (value: unknown): IBlenderArtifactChunk =>
+        BlenderArtifactProtocol.chunk(value, params),
+    );
+  }
+
+  /** Release one owned image; published user files and native rendering remain untouched. */
+  public async releaseArtifact(
+    artifact: IBlenderArtifactHandle,
+  ): Promise<void> {
+    const handle: IBlenderArtifactHandle = BlenderRenderProtocol.artifactHandle(
+      artifact,
+      this.session,
+    );
+    await this.connection.execute(
+      "artifact.release",
+      { artifactId: handle.artifactId },
+      true,
+      (value: unknown): void => BlenderArtifactProtocol.empty(value),
+    );
+  }
+
+  /** Publish a private PNG at an explicit absolute destination; overwrite is false unless explicitly requested. */
+  public async saveArtifact(
+    options: IBlenderArtifactSaveOptions,
+  ): Promise<IBlenderSavedFile> {
+    const r: Record<string, unknown> = BlenderValue.record(options);
+    const artifact: IBlenderArtifactHandle =
+      BlenderRenderProtocol.artifactHandle(r.artifact, this.session);
+    const destination: IBlenderSaveOptions = BlenderArtifactProtocol.save(
+      options,
+      ".png",
+    );
+    return this.connection.execute(
+      "artifact.save",
+      { artifactId: artifact.artifactId, ...destination },
+      true,
+      (value: unknown, session: IBlenderSession): IBlenderSavedFile =>
+        BlenderArtifactProtocol.saved(value, session, destination, false),
+    );
+  }
+
+  /** Save a native .blend copy with relative-path remapping while preserving the current working filepath; IO is outside undo. */
+  public async saveBlendCopy(
+    options: IBlenderSaveOptions,
+  ): Promise<IBlenderSavedFile> {
+    const destination: IBlenderSaveOptions = BlenderArtifactProtocol.save(
+      options,
+      ".blend",
+    );
+    return this.connection.execute(
+      "scene.saveBlendCopy",
+      destination,
+      true,
+      (value: unknown, session: IBlenderSession): IBlenderSavedFile =>
+        BlenderArtifactProtocol.saved(value, session, destination, true),
+    );
+  }
+
+  /** Release bridge ownership and close the socket without cancelling a native render or rolling back scene/file changes. */
+  public async disconnect(): Promise<void> {
+    await this.connection.disconnect();
+  }
+
+  /** A targeted operation must return that exact object, not another object from the same session. */
+  private objectResult(
+    value: unknown,
+    session: IBlenderSession,
+    expected: IBlenderObjectHandle,
+  ): IBlenderObjectSnapshot {
+    const result: IBlenderObjectSnapshot = BlenderProtocol.snapshot(
+      value,
+      session,
+    );
+    if (result.handle.objectId !== expected.objectId)
+      throw new BlenderError(
+        "INVALID_RESPONSE",
+        "Object readback belongs to another target.",
       );
-    }
-    this.socket.destroy();
+    return result;
   }
 }
