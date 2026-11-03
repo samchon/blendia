@@ -33,15 +33,19 @@ jobs:
     name: Blender 5.2.0 CPU
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    env:
-      BLENDER_ARCHIVE_DIRECTORY: ${{ runner.temp }}/blendia-blender-download
-      BLENDIA_BLENDER_EXECUTABLE: ${{ runner.temp }}/blender-5.2.0-linux-x64/blender
-      BLENDIA_EXTENSION_SOURCE_DIRECTORY: ${{ github.workspace }}/blender/extension
-      BLENDIA_TEST_OUTPUT_DIRECTORY: ${{ runner.temp }}/blendia-engine-results
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Configure isolated engine paths
+        shell: bash
+        run: |
+          {
+            printf 'BLENDER_ARCHIVE_DIRECTORY=%s/blendia-blender-download\n' "$RUNNER_TEMP"
+            printf 'BLENDIA_BLENDER_EXECUTABLE=%s/blender-5.2.0-linux-x64/blender\n' "$RUNNER_TEMP"
+            printf 'BLENDIA_EXTENSION_SOURCE_DIRECTORY=%s/blender/extension\n' "$GITHUB_WORKSPACE"
+            printf 'BLENDIA_TEST_OUTPUT_DIRECTORY=%s/blendia-engine-results\n' "$RUNNER_TEMP"
+          } >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.23.2

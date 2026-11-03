@@ -34,8 +34,9 @@ export function test_scene_mapping(): void {
   tuple[1] = 7;
   assert.equal(vector[1], 1e20);
 
-  const hole: BlendiaMcpVector3 = [0, 0, 0];
-  delete hole[1];
+  const hole: BlendiaMcpVector3 = new Array<number>(3);
+  hole[0] = 0;
+  hole[2] = 0;
   const nonnumeric: unknown = [0, "1", 0];
   const invalid: readonly BlendiaMcpVector3[] = [
     [],

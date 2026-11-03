@@ -30,7 +30,7 @@ export async function runNativeBlender(
     stdio: "inherit",
     windowsHide: true,
   });
-  await new Promise<void>(
+  const completion: Promise<void> = new Promise(
     (resolve: () => void, reject: (error: Error) => void): void => {
       let settled: boolean = false;
 
@@ -144,4 +144,5 @@ export async function runNativeBlender(
       );
     },
   );
+  await completion;
 }

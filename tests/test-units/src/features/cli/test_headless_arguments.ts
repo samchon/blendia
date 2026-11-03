@@ -245,8 +245,9 @@ export function test_headless_arguments(): void {
 
   // Sparse script arguments must fail before prerequisite lookup can replace the admission error.
   const sparseArgs: string[] = new Array<string>(1);
-  const partialArgs: string[] = ["before", "missing", "after"];
-  delete partialArgs[1];
+  const partialArgs: string[] = new Array<string>(3);
+  partialArgs[0] = "before";
+  partialArgs[2] = "after";
   const invalidArgs: readonly unknown[] = [
     null,
     {},
