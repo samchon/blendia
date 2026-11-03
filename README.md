@@ -20,6 +20,8 @@ From the repository with its dependencies installed, run the source CLI directly
 pnpm blendia run --cwd /path/to/project --project tsconfig.json src/model.ts
 ```
 
+See the [execution and diagnostics guide](docs/design/script-jobs.md#first-run-preparation) for first-run native compiler/plugin preparation, structured output, session discovery, and metadata-only setup checks.
+
 ## Run from Blender
 
 The extension's TypeScript Macros panel provides Run TypeScript File for a saved project entry and Run Active Text Snapshot for the selected Text Editor buffer. Both use your project's compiler and dependencies. Follow the [extension setup](blender/extension/README.md#run-typescript-from-blender) to select the project and execution tools.

@@ -1,6 +1,8 @@
 import type { IProjectScriptOptions } from "@blendia/runtime";
 
 import type { IBlendiaCommand } from "./IBlendiaCommand";
+import type { IBlendiaDoctorCommand } from "./IBlendiaDoctorCommand";
+import type { IBlendiaSessionsCommand } from "./IBlendiaSessionsCommand";
 import type { IBlendiaTextCommand } from "./IBlendiaTextCommand";
 
 /**
@@ -13,18 +15,29 @@ export function parseBlendiaCommand(argv: readonly string[]): IBlendiaCommand {
     argv.length === 0 ||
     (argv.length === 1 && (argv[0] === "--help" || argv[0] === "-h")) ||
     (argv.length === 2 &&
-      (argv[0] === "run" || argv[0] === "run-text") &&
+      ["run", "run-text", "sessions", "doctor"].includes(argv[0]) &&
       (argv[1] === "--help" || argv[1] === "-h"))
   )
     return { kind: "help" };
   if (argv[0] === "run-text") return parseTextCommand(argv);
+  if (argv[0] === "sessions") return parseSessionsCommand(argv);
+  if (argv[0] === "doctor") return parseDoctorCommand(argv);
   if (argv[0] !== "run")
-    throw new Error("blendia: expected run, run-text, or --help.");
+    throw new Error(
+      "blendia: expected run, run-text, sessions, doctor, or --help.",
+    );
 
   let cwd: string | undefined;
   let project: string | undefined;
+  let jsonl: true | undefined;
   for (let index: number = 1; index < argv.length; index++) {
     const argument: string = argv[index];
+    if (argument === "--jsonl") {
+      if (jsonl !== undefined)
+        throw new Error("blendia: --jsonl may appear once.");
+      jsonl = true;
+      continue;
+    }
     if (argument === "--cwd" || argument === "--project") {
       const value: string | undefined = argv[index + 1];
       if (
@@ -57,7 +70,9 @@ export function parseBlendiaCommand(argv: readonly string[]): IBlendiaCommand {
       project,
       args: argv.slice(tailIndex),
     };
-    return { kind: "run", options };
+    return jsonl === undefined
+      ? { kind: "run", options }
+      : { kind: "run", options, jsonl };
   }
   throw new Error("blendia: a project entry is required after run.");
 }
@@ -66,11 +81,18 @@ export function parseBlendiaCommand(argv: readonly string[]): IBlendiaCommand {
 function parseTextCommand(argv: readonly string[]): IBlendiaTextCommand {
   const values: Map<string, string> = new Map();
   let args: readonly string[] = [];
+  let jsonl: true | undefined;
   for (let index: number = 1; index < argv.length; index++) {
     const argument: string = argv[index];
     if (argument === "--") {
       args = argv.slice(index + 1);
       break;
+    }
+    if (argument === "--jsonl") {
+      if (jsonl !== undefined)
+        throw new Error("blendia: --jsonl may appear once.");
+      jsonl = true;
+      continue;
     }
     if (
       ![
@@ -106,6 +128,7 @@ function parseTextCommand(argv: readonly string[]): IBlendiaTextCommand {
     );
   return {
     kind: "run-text",
+    ...(jsonl === undefined ? {} : { jsonl }),
     inputFile,
     options: {
       cwd,
@@ -115,4 +138,73 @@ function parseTextCommand(argv: readonly string[]): IBlendiaTextCommand {
       args,
     },
   };
+}
+
+/** Admit explicit metadata inspection without consuming script arguments. */
+function parseDoctorCommand(argv: readonly string[]): IBlendiaDoctorCommand {
+  const values: Map<string, string> = new Map();
+  for (let index: number = 1; index < argv.length; index += 2) {
+    const flag: string = argv[index];
+    if (flag !== "--cwd" && flag !== "--project")
+      throw new Error(`blendia: unsupported doctor option ${flag}.`);
+    readPair(argv, index, values);
+  }
+  return {
+    kind: "doctor",
+    options: { cwd: values.get("--cwd"), project: values.get("--project") },
+  };
+}
+
+/** Probes are explicit, bounded and never inferred from descriptor presence. */
+function parseSessionsCommand(
+  argv: readonly string[],
+): IBlendiaSessionsCommand {
+  const values: Map<string, string> = new Map();
+  let probe: true | undefined;
+  for (let index: number = 1; index < argv.length; index++) {
+    const flag: string = argv[index];
+    if (flag === "--probe") {
+      if (probe !== undefined)
+        throw new Error("blendia: --probe may appear once.");
+      probe = true;
+      continue;
+    }
+    if (flag !== "--directory" && flag !== "--probe-timeout-ms")
+      throw new Error(`blendia: unsupported sessions option ${flag}.`);
+    readPair(argv, index, values);
+    index++;
+  }
+  const directory: string | undefined = values.get("--directory");
+  if (directory === undefined)
+    throw new Error("blendia: sessions requires --directory.");
+  const timeout: string | undefined = values.get("--probe-timeout-ms");
+  let probeTimeoutMs: number | undefined;
+  if (timeout !== undefined) {
+    if (
+      probe === undefined ||
+      !/^\d+$/u.test(timeout) ||
+      !Number.isSafeInteger(Number(timeout)) ||
+      Number(timeout) < 100 ||
+      Number(timeout) > 5000
+    )
+      throw new Error(
+        "blendia: --probe-timeout-ms requires --probe and an integer from 100 through 5000.",
+      );
+    probeTimeoutMs = Number(timeout);
+  }
+  return { kind: "sessions", options: { directory, probe, probeTimeoutMs } };
+}
+
+/** Consume a unique nonblank path/numeric operand, rejecting option-like values. */
+function readPair(
+  argv: readonly string[],
+  index: number,
+  values: Map<string, string>,
+): void {
+  const flag: string = argv[index];
+  if (values.has(flag)) throw new Error(`blendia: ${flag} may appear once.`);
+  const value: string | undefined = argv[index + 1];
+  if (value === undefined || value.trim().length === 0 || value.startsWith("-"))
+    throw new Error(`blendia: ${flag} requires an operand.`);
+  values.set(flag, value);
 }

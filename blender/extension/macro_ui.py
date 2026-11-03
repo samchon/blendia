@@ -78,8 +78,18 @@ def draw_macros(layout, context, active_text=False):
     if not bridge.running:
         layout.label(text="Start Blendia in the viewport first", icon="INFO")
     layout.label(text=launcher.status[:150])
+    if launcher.job_snapshot is not None:
+        snapshot = launcher.job_snapshot
+        layout.label(text=f"Job: {snapshot['id'][:40]}")
+        layout.label(text=f"Phase: {snapshot['phase']}; outcome: {snapshot.get('outcome', 'pending')}")
+        if snapshot["metadataTruncated"]:
+            layout.label(text="Job metadata shortened", icon="INFO")
+    else:
+        layout.label(text="Waiting for a captured script job")
     if launcher.uncertain:
         layout.label(text="Resolve descendants, then restart Blender", icon="ERROR")
+    elif launcher.protocol_error:
+        layout.label(text="Machine-event observation damaged", icon="ERROR")
     layout.label(text="Stopping Blendia does not cancel TypeScript", icon="INFO")
     if launcher.truncated:
         layout.label(text="Earlier output truncated", icon="INFO")

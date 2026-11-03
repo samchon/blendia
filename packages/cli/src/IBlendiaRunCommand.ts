@@ -7,4 +7,6 @@ export interface IBlendiaRunCommand {
 
   /** Entry, project paths, and script-owned arguments admitted by the CLI parser. */
   options: IProjectScriptOptions;
+  /** Capture and render bounded JSONL observations; absent preserves inherited streams. */
+  jsonl?: true;
 }

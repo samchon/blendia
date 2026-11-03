@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 import {
   type IProjectScriptResult,
+  type IScriptJobSnapshot,
   type ITextMacroResult,
   TEXT_MACRO_MAX_BYTES,
+  discoverBlenderSessions,
+  doctorProject,
   runProjectScript,
   runTextMacro,
 } from "@blendia/runtime";
@@ -13,6 +16,7 @@ import { TextDecoder } from "node:util";
 
 import type { IBlendiaCommand } from "./IBlendiaCommand";
 import { parseBlendiaCommand } from "./parseBlendiaCommand";
+import { runMachineJob } from "./runMachineJob";
 
 /**
  * Run the actual terminal request and preserve script diagnostics on inherited streams.
@@ -24,8 +28,10 @@ async function main(): Promise<void> {
   if (command.kind === "help") {
     process.stdout.write(
       [
-        "Usage: blendia run [--cwd <dir>] [--project <tsconfig>] <entry> [-- <script args...>]",
-        "       blendia run-text --cwd <dir> --source-path <logical.ts> --input-file <utf8> [--project <tsconfig>] [--origin <label>] [-- <script args...>]",
+        "Usage: blendia run [--jsonl] [--cwd <dir>] [--project <tsconfig>] <entry> [-- <script args...>]",
+        "       blendia run-text [--jsonl] --cwd <dir> --source-path <logical.ts> --input-file <utf8> [--project <tsconfig>] [--origin <label>] [-- <script args...>]",
+        "       blendia sessions --directory <dir> [--probe] [--probe-timeout-ms <100..5000>]",
+        "       blendia doctor [--cwd <dir>] [--project <tsconfig>]",
         "       blendia --help",
         "",
         "Run existing project TypeScript through ttsx using the current Node executable.",
@@ -33,10 +39,47 @@ async function main(): Promise<void> {
         "One -- immediately after the entry is removed as the CLI separator.",
         "run-text reads at most 256 KiB of UTF-8 and stages a sibling module; its -- starts script arguments.",
         "BLENDIA_PORT and BLENDIA_TOKEN are inherited by the script's SDK client.",
+        "--jsonl captures bounded logs and terminal observations; stdin is ignored in this mode.",
+        "sessions/doctor output JSON metadata; discovery probes require --probe and briefly acquire an idle lease.",
+        "doctor does not execute the compiler or verify Go/network/native first-use preparation.",
         "Start Blender's Blendia extension and set its credentials before a Blender script.",
         "",
       ].join("\n"),
     );
+    return;
+  }
+
+  if (command.kind === "sessions") {
+    process.stdout.write(
+      JSON.stringify(await discoverBlenderSessions(command.options)) + "\n",
+    );
+    return;
+  }
+  if (command.kind === "doctor") {
+    process.stdout.write(
+      JSON.stringify(await doctorProject(command.options)) + "\n",
+    );
+    return;
+  }
+  if (command.jsonl === true) {
+    const snapshot: IScriptJobSnapshot = await runMachineJob(
+      command.kind === "run"
+        ? { kind: "file", options: command.options }
+        : {
+            kind: "text",
+            options: {
+              ...command.options,
+              text: readTextInput(command.inputFile, command.options.cwd),
+            },
+          },
+    );
+    const result: IProjectScriptResult | undefined = snapshot.result;
+    const retained: boolean =
+      result !== undefined &&
+      "staging" in result &&
+      result.staging === "retained";
+    process.exitCode =
+      snapshot.outcome === "exited" && !retained ? (result?.code ?? 1) : 1;
     return;
   }
 
@@ -100,8 +143,11 @@ function readTextInput(inputFile: string, cwd: string): string {
 }
 
 void main().catch((error: unknown): void => {
+  const message: string =
+    error instanceof Error ? error.message : String(error);
+  const token: string = process.env.BLENDIA_TOKEN ?? "";
   process.stderr.write(
-    `${error instanceof Error ? error.message : String(error)}\n`,
+    `${token.length === 0 ? message : message.split(token).join("[REDACTED]")}\n`,
   );
   process.exitCode = 1;
 });
