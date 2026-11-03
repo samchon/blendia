@@ -34,6 +34,7 @@ The current interfaces and their limitations are documented here:
 
 - [CLI](packages/cli/README.md): running saved project TypeScript files.
 - [SDK](packages/sdk/README.md): connecting to Blender and working with scene objects.
+- [MCP agent tools](docs/design/mcp-agent-tools.md): connecting a coding agent to scene tools, captured scripts, and bounded native PNG images.
 - [Scene authoring and outputs](docs/design/scene-render-save.md): creating a scene, rendering a PNG, and saving a `.blend` copy with explicit output ownership.
 - [Owned headless projects](docs/design/headless-projects.md): running one project script in a new background Blender with explicit executable and extension paths.
 - [Blender extension](blender/extension/README.md): establishing the live Blender connection.

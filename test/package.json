@@ -12,9 +12,11 @@
   "author": "Samchon",
   "license": "MIT",
   "dependencies": {
+    "@blendia/mcp": "workspace:^",
     "@blendia/sdk": "workspace:^",
     "@nestia/e2e": "catalog:samchon",
-    "blendia": "workspace:^"
+    "blendia": "workspace:^",
+    "typia": "catalog:samchon"
   },
   "devDependencies": {
     "@ttsc/evidence": "catalog:samchon",

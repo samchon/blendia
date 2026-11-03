@@ -2,16 +2,21 @@
   "name": "@blendia/mcp",
   "version": "0.1.0",
   "private": true,
-  "description": "Blendia MCP integration boundary; infrastructure scaffold only.",
+  "description": "MCP tools for a live Blender session and owned project execution.",
   "main": "src/index.ts",
+  "bin": {
+    "blendia-mcp": "lib/bin.js"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "rimraf lib && ttsc",
+    "start": "ttsx src/bin.ts",
     "prepack": "pnpm run build",
-    "lint": "ttsx ../../config/checkLint.ts"
+    "lint": "ttsx ../../config/checkLint.ts",
+    "evidence": "evidence"
   },
   "author": "Samchon",
   "license": "MIT",
@@ -28,6 +33,9 @@
   ],
   "publishConfig": {
     "access": "public",
+    "bin": {
+      "blendia-mcp": "lib/bin.js"
+    },
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
     "exports": {
@@ -38,10 +46,18 @@
       "./package.json": "./package.json"
     }
   },
+  "dependencies": {
+    "@blendia/runtime": "workspace:^",
+    "@blendia/sdk": "workspace:^",
+    "@modelcontextprotocol/sdk": "catalog:samchon",
+    "@typia/mcp": "catalog:samchon",
+    "typia": "catalog:samchon"
+  },
   "devDependencies": {
     "@ttsc/evidence": "catalog:samchon",
     "@ttsc/lint": "catalog:samchon",
     "@types/node": "catalog:utils",
+    "@wrtnlabs/evidence": "catalog:samchon",
     "rimraf": "catalog:utils",
     "ttsc": "catalog:samchon",
     "typescript": "catalog:typescript"

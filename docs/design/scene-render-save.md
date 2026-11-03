@@ -1,6 +1,6 @@
 # Author a scene, render a PNG, and save a Blender copy
 
-Tracking: [SDK #2](https://github.com/samchon/blendia/issues/2), [lifecycle #3](https://github.com/samchon/blendia/issues/3), [validation #6](https://github.com/samchon/blendia/issues/6), and [PR #14](https://github.com/samchon/blendia/pull/14). This guide describes the scene-to-output source API and its ownership limits. Real Blender acceptance and delivered artifacts belong in the tracking records; this guide does not certify a successful run. [Owned headless execution](headless-projects.md) reuses these methods with a separate blocking lifetime; [MCP/native image delivery #5](https://github.com/samchon/blendia/issues/5) remains following work.
+Tracking: [SDK #2](https://github.com/samchon/blendia/issues/2), [lifecycle #3](https://github.com/samchon/blendia/issues/3), [validation #6](https://github.com/samchon/blendia/issues/6), and [PR #14](https://github.com/samchon/blendia/pull/14). This guide describes the scene-to-output source API and its ownership limits. Real Blender acceptance and delivered artifacts belong in the tracking records; this guide does not certify a successful run. [Owned headless execution](headless-projects.md) reuses these methods with a separate blocking lifetime; the [MCP guide](mcp-agent-tools.md) describes agent tools and bounded native image delivery over the same SDK.
 
 ## Connect and prepare
 
@@ -67,11 +67,11 @@ Native Blender saving uses copy semantics and relative-path remapping. The curre
 
 ## Acceptance and verification
 
-One secret-free source TS inspects the loaded scene, creates a five-vertex pyramid, assigns opaque material, adds active camera/area light, starts a caller-ID native render, polls, reads bounded PNG chunks, saves PNG and a .blend copy at explicit destinations, then reopens the .blend and rerenders the same camera/settings. Preserve the actual PNG/.blend/TS as ignored or external task-owned user artifacts, never Git. Headless and MCP later consume the same scene core; background EXEC can block its Python RPC and does not inherit GUI async guarantees.
+One secret-free source TS inspects the loaded scene, creates a five-vertex pyramid, assigns opaque material, adds active camera/area light, starts a caller-ID native render, polls, reads bounded PNG chunks, saves PNG and a .blend copy at explicit destinations, then reopens the .blend and rerenders the same camera/settings. Preserve the actual PNG/.blend/TS as ignored or external task-owned user artifacts, never Git. Headless and MCP consume the same scene core; background EXEC can block its Python RPC and does not inherit GUI async guarantees.
 
 Observe actual invalid topology/shared mesh rejection, no-overwrite/explicit overwrite, chunk boundaries/release/expiry, stale reconnect and render ownership/cancellation where available. Units cover only real first-party validators/state/chunk logic, never upstream behavior, static manifests, artificial child/filesystem fixtures or a separate example package. Record unsupported observations precisely. Collect source checks, applicable Evidence, independent complete review, actual Blender results and exact-head CI in one cause round; reuse same-head CI full lint/native guards/distribution build rather than duplicate local aggregates. Green checks and fresh self/independent review lead directly to Ready/merge under the standing mandate.
 
-Final integrated acceptance additionally covers isolated headless scene/render/save lifetime, typia MCP native images in real clients and installation of the latest extension ZIP. Those remain following Drafts; package publication and release are not authorized.
+Final integrated acceptance additionally covers isolated headless scene/render/save lifetime, typia MCP native images in real clients and installation of the latest extension ZIP. Their actual results belong in the relevant tracking records; source integration does not establish real-client image consumption. Package publication and release are not authorized.
 
 ## Primary-source basis
 
