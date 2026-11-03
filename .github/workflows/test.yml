@@ -42,5 +42,6 @@ jobs:
           node-version: 22.23.2
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @blendia/test lint
       - run: pnpm run test:types
       - run: pnpm test

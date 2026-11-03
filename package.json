@@ -12,6 +12,7 @@
     "extension:license": "ttsx config/prepareExtensionLicense.ts",
     "build": "pnpm --filter=./packages/** -r build",
     "config:check": "pnpm --filter @blendia/config build",
+    "lint": "pnpm --filter=./config --filter=./packages/** --filter=./test --no-bail -r lint",
     "test": "pnpm --filter @blendia/test start",
     "test:types": "pnpm --filter @blendia/test build",
     "format": "prettier --write \"**/*.{ts,cts,mts}\"",

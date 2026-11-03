@@ -8,7 +8,7 @@ Run a saved project script to create, inspect, and transform Blender objects thr
 
 Blendia is in early development and is not yet published to npm. The current repository version supports saved project files; setup and usage are documented below.
 
-A Blender Run TypeScript action and support for unsaved editor scripts are planned follow-up features.
+The Blender extension includes preview actions for running project files and active Text snapshots. Their setup and limitations are described in the [extension guide](blender/extension/README.md#run-typescript-from-blender).
 
 ## Run a project script
 
@@ -19,6 +19,12 @@ From the repository with its dependencies installed, run the source CLI directly
 ```sh
 pnpm blendia run --cwd /path/to/project --project tsconfig.json src/model.ts
 ```
+
+## Run from Blender
+
+The extension's TypeScript Macros panel provides Run TypeScript File for a saved project entry and Run Active Text Snapshot for the selected Text Editor buffer. Both use your project's compiler and dependencies. Follow the [extension setup](blender/extension/README.md#run-typescript-from-blender) to select the project and execution tools.
+
+An active Text snapshot runs as a sibling module in an explicit project directory. The original disk file and Text are preserved, but module identity changes, self-imports still use the original file, and old on-disk errors can still fail project checking. There is no macro Stop or automatic rollback: stopping the bridge does not cancel the script, and changes already made to Blender can remain after failure.
 
 ## Usage documentation
 

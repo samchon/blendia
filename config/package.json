@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "description": "Shared TypeScript and compiler lint configuration.",
   "scripts": {
-    "build": "ttsc --noEmit"
+    "build": "ttsc --noEmit",
+    "lint": "ttsx checkLint.ts"
   },
   "devDependencies": {
     "@ttsc/evidence": "catalog:samchon",

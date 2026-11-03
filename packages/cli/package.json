@@ -14,7 +14,8 @@
   "scripts": {
     "build": "rimraf lib && ttsc",
     "start": "ttsx src/bin.ts",
-    "prepack": "pnpm run build"
+    "prepack": "pnpm run build",
+    "lint": "ttsx ../../config/checkLint.ts"
   },
   "author": "Samchon",
   "license": "MIT",

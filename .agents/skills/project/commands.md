@@ -7,6 +7,7 @@ Read `package.json`, `pnpm-workspace.yaml`, and the affected package manifest be
 | `pnpm install --frozen-lockfile` | Reproduce the committed dependency graph. |
 | `pnpm run build` | Independently check compiled output in dependency order; local consumers do not require it. |
 | `pnpm run config:check` | Run `ttsc --noEmit` in `config` using its existing `tsconfig.json`. |
+| `pnpm run lint` | Run the additional lint diagnostics guard against each workspace's existing tsconfig. |
 | `pnpm run format` | Apply shared Prettier formatting to owned TypeScript files. |
 | `pnpm run format:check` | Check formatting without editing. |
 | `pnpm run evidence` | Aggregate the separate Evidence checks without stopping at the first package failure. |
