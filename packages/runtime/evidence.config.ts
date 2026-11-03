@@ -5,9 +5,9 @@ export default {
   severity: "error",
   claims: [
     {
-      name: "project execution boundary",
+      name: "project execution and Text staging boundaries",
       type: "typescript",
-      files: ["src/runProjectScript.ts"],
+      files: ["src/runProjectScript.ts", "src/runTextMacro.ts"],
       symbol: "function",
       reference: {
         type: "markdown",

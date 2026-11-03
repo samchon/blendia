@@ -6,6 +6,8 @@ import json
 import bpy
 
 from .commands import BLENDIA_OT_mutate
+from .macro_process import launcher
+from .macro_ui import BLENDIA_PG_macro_settings, MACRO_CLASSES
 from .server import bridge, register_handlers, unregister_handlers
 
 
@@ -90,21 +92,31 @@ class BLENDIA_PT_session(bpy.types.Panel):
 
 
 CLASSES = (BLENDIA_OT_mutate, BLENDIA_OT_start, BLENDIA_OT_stop,
-           BLENDIA_OT_copy_connection, BLENDIA_OT_copy_descriptor, BLENDIA_PT_session)
+           BLENDIA_OT_copy_connection, BLENDIA_OT_copy_descriptor, BLENDIA_PT_session,
+           *MACRO_CLASSES)
 
 
 def register():
     """Register controls without opening a socket until the user selects Start."""
     for cls in CLASSES:
         bpy.utils.register_class(cls)
+    bpy.types.WindowManager.blendia_macros = bpy.props.PointerProperty(type=BLENDIA_PG_macro_settings)
+    launcher.enabled = True
     register_handlers()
     atexit.register(bridge.close_transport)
+    atexit.unregister(launcher.abandon_at_exit)
+    atexit.register(launcher.abandon_at_exit)
 
 
 def unregister():
     """Revoke the session before removing classes and lifecycle callbacks."""
+    launcher.enabled = False
     bridge.stop()
     atexit.unregister(bridge.close_transport)
+    # A live CLI keeps its drain/reap timer; disabling is not process cancellation.
+    if not launcher.running:
+        atexit.unregister(launcher.abandon_at_exit)
     unregister_handlers()
+    del bpy.types.WindowManager.blendia_macros
     for cls in reversed(CLASSES):
         bpy.utils.unregister_class(cls)

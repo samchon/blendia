@@ -9,6 +9,6 @@ blender_version_min = "5.2.0"
 license = ["SPDX:MIT"]
 
 [permissions]
-files = "Store a private local session descriptor"
+files = "Store private session and Text inputs and launch project TypeScript files"
 network = "Connect local TypeScript programs to Blender over loopback"
 clipboard = "Copy the local connection settings on explicit request"
