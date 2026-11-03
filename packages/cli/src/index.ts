@@ -5,6 +5,7 @@ export type { IBlendiaTextCommand } from "./IBlendiaTextCommand";
 export { parseBlendiaCommand } from "./parseBlendiaCommand";
 export type { IBlendiaSessionsCommand } from "./IBlendiaSessionsCommand";
 export type { IBlendiaDoctorCommand } from "./IBlendiaDoctorCommand";
+export type { IBlendiaHeadlessCommand } from "./IBlendiaHeadlessCommand";
 export type { IScriptMachineEvent } from "./IScriptMachineEvent";
 export type { IScriptSnapshotEvent } from "./IScriptSnapshotEvent";
 export type { IScriptLogEvent } from "./IScriptLogEvent";

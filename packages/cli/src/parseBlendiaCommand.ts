@@ -4,6 +4,7 @@ import type { IBlendiaCommand } from "./IBlendiaCommand";
 import type { IBlendiaDoctorCommand } from "./IBlendiaDoctorCommand";
 import type { IBlendiaSessionsCommand } from "./IBlendiaSessionsCommand";
 import type { IBlendiaTextCommand } from "./IBlendiaTextCommand";
+import { parseHeadlessCommand } from "./parseHeadlessCommand";
 
 /**
  * Parse saved-file and Text commands without consuming their script arguments.
@@ -15,16 +16,17 @@ export function parseBlendiaCommand(argv: readonly string[]): IBlendiaCommand {
     argv.length === 0 ||
     (argv.length === 1 && (argv[0] === "--help" || argv[0] === "-h")) ||
     (argv.length === 2 &&
-      ["run", "run-text", "sessions", "doctor"].includes(argv[0]) &&
+      ["run", "run-text", "sessions", "doctor", "headless"].includes(argv[0]) &&
       (argv[1] === "--help" || argv[1] === "-h"))
   )
     return { kind: "help" };
   if (argv[0] === "run-text") return parseTextCommand(argv);
+  if (argv[0] === "headless") return parseHeadlessCommand(argv);
   if (argv[0] === "sessions") return parseSessionsCommand(argv);
   if (argv[0] === "doctor") return parseDoctorCommand(argv);
   if (argv[0] !== "run")
     throw new Error(
-      "blendia: expected run, run-text, sessions, doctor, or --help.",
+      "blendia: expected run, run-text, sessions, doctor, headless, or --help.",
     );
 
   let cwd: string | undefined;

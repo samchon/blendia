@@ -46,19 +46,22 @@ class SceneCommands:
         else:
             raise BridgeError("UNKNOWN_METHOD", "Unknown bridge method")
 
-        # An undoable operator owns each mutation rather than a timer-side undo push.
-        if bpy.context.mode != "OBJECT":
+        # GUI edits use an undo operator; owned background edits call the same data core.
+        if not self.bridge.background and bpy.context.mode != "OBJECT":
             raise BridgeError("INVALID_CONTEXT", "Switch Blender to Object Mode before modifying the scene")
-        if not bpy.context.preferences.edit.use_global_undo:
+        if not self.bridge.background and not bpy.context.preferences.edit.use_global_undo:
             raise BridgeError("INVALID_CONTEXT", "Enable Global Undo before modifying the scene")
         self.pending = (method, params)
         self.result = None
         self.error = None
         self.effects = "none"
         try:
-            outcome = bpy.ops.blendia.mutate("EXEC_DEFAULT", True)
-            if "FINISHED" not in outcome:
-                raise BridgeError("INVALID_CONTEXT", "Blender refused the mutation")
+            if self.bridge.background:
+                self.mutate()
+            else:
+                outcome = bpy.ops.blendia.mutate("EXEC_DEFAULT", True)
+                if "FINISHED" not in outcome:
+                    raise BridgeError("INVALID_CONTEXT", "Blender refused the mutation")
             if self.error is not None:
                 raise self.error
             return self.result
@@ -73,7 +76,7 @@ class SceneCommands:
             self.effects = "none"
 
     def mutate(self):
-        """Called only by the registered Blender operator on the main thread."""
+        """Apply on the main thread through the GUI operator or owned background pump."""
         method, params = self.pending
         try:
             if method in SCENE_METHODS:

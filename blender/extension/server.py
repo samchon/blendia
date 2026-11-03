@@ -37,6 +37,7 @@ class Bridge:
     """Own a single live session without a background Python execution thread."""
 
     def __init__(self):
+        self.background = bool(bpy.app.background)
         self.listener = None
         self.connections = []
         self.owner = None
@@ -49,7 +50,12 @@ class Bridge:
         self.last_error = ""
         self.enabled = False
         self.artifacts = ArtifactStore()
-        self.renders = NativeRender(self, self.artifacts)
+        if self.background:
+            from .background_render import BackgroundRender
+
+            self.renders = BackgroundRender(self, self.artifacts)
+        else:
+            self.renders = NativeRender(self, self.artifacts)
         self.commands = SceneCommands(self)
 
         # Keep the exact bound-method object for timer registration and teardown.
@@ -59,16 +65,23 @@ class Bridge:
     def running(self):
         return self.listener is not None
 
-    def start(self):
+    def start(self, directory=None, token=None):
         """Start a fresh explicitly enabled session and write its private descriptor."""
         if self.running:
             return
         if bpy.app.version < (5, 2, 0):
             raise RuntimeError("Blendia requires Blender 5.2 or newer")
+        if self.background and (directory is None or token is None):
+            raise RuntimeError("Background sessions require explicit private storage and credentials")
+        if token is not None and (not isinstance(token, str) or not 32 <= len(token) <= 256
+                                  or not token.isascii() or not token.isprintable()):
+            raise ValueError("Invalid private session credential")
+        if directory is not None and (not Path(directory).is_absolute() or not Path(directory).is_dir()):
+            raise ValueError("Private session directory must exist and be absolute")
         session_id = str(uuid.uuid4())
         self.renders.start_session(session_id)
         self.session_id = session_id
-        self.token = secrets.token_urlsafe(32)
+        self.token = secrets.token_urlsafe(32) if token is None else token
         self.generation = 0
         self.loading = False
         self.last_error = ""
@@ -82,17 +95,17 @@ class Bridge:
             listener.setblocking(False)
             self.listener = listener
             self.port = listener.getsockname()[1]
-            location = bpy.utils.user_resource("CONFIG", path="blendia", create=True)
+            location = directory if directory is not None else bpy.utils.user_resource("CONFIG", path="blendia", create=True)
             if not location or not Path(location).is_absolute():
                 raise RuntimeError("Blender did not provide an absolute user configuration directory")
-            directory = Path(location)
-            path = directory / f"session-{self.session_id}.json"
+            path = Path(location) / f"session-{self.session_id}.json"
             self.descriptor_path = str(path)
             descriptor = {"protocolVersion": 1, "host": "127.0.0.1", "port": self.port,
                           "token": self.token, "sessionId": self.session_id}
             with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w", encoding="utf-8") as file:
                 json.dump(descriptor, file, separators=(",", ":"))
-            bpy.app.timers.register(self.timer, first_interval=0.01, persistent=True)
+            if not self.background:
+                bpy.app.timers.register(self.timer, first_interval=0.01, persistent=True)
         except Exception:
             if listener is not None:
                 listener.close()

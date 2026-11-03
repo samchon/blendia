@@ -37,6 +37,7 @@ export default {
         "src/runProjectScript.ts",
         "src/runTextMacro.ts",
         "src/startScriptJob.ts",
+        "src/runHeadlessProject.ts",
       ],
       symbol: "function",
       reference: {

@@ -12,4 +12,8 @@ export interface IScriptProcessOptions {
   log?: ScriptLog;
   /** Launcher lifecycle observations without a user-code-start claim. */
   onPhase?: (phase: IScriptJobSnapshot["phase"]) => void;
+  /** Report the actual owned child PID without exposing a kill/process-manager API. */
+  onSpawn?: (pid: number) => void;
+  /** End captured observation as unknown without sending a signal or killing the child. */
+  observationSignal?: AbortSignal;
 }

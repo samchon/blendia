@@ -35,7 +35,7 @@ import { BlenderSceneProtocol } from "./internal/BlenderSceneProtocol";
 import { BlenderValue } from "./internal/BlenderValue";
 
 /**
- * Explicit async scene, native GUI render, and persistent-output operations on one exclusive bridge connection.
+ * Explicit async scene, native render, and persistent-output operations on one exclusive bridge connection.
  *
  * @evidence contracts/common.md#principled-implementation Feature input codecs validate arguments before transmission and feature result codecs validate detached readback; object/material references require the current lifetime while render/artifact references require the same session.
  * @evidence contracts/common.md#clear-and-simple-design This facade composes feature codecs with one internal connection; the connection exclusively owns sockets, pending work, timeouts, and unknown-outcome handling.
@@ -210,7 +210,11 @@ export class BlenderClient {
     );
   }
 
-  /** Start native GUI rendering with a caller-known UUID; response loss is not permission to repeat the start. */
+  /**
+   * Start rendering with a caller-known UUID; GUI invocation returns a native job while owned headless invocation waits for native completion.
+   *
+   * The connection's response deadline still applies to a blocking headless render. A timeout does not cancel native execution or permit replay; choose an explicit larger timeoutMs before connecting when needed.
+   */
   public async startRender(
     options: IBlenderRenderOptions,
   ): Promise<BlenderRenderJob> {

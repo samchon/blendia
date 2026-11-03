@@ -11,4 +11,6 @@ export interface IScriptExecutionOptions {
   log?: ScriptLog;
   /** Optional launcher-state observer for the captured job owner. */
   onPhase?: (phase: IScriptJobSnapshot["phase"]) => void;
+  /** Owned parent loss ends capture observation as unknown without terminating the script launcher. */
+  observationSignal?: AbortSignal;
 }
