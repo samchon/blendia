@@ -14,6 +14,11 @@ export class ScriptProcess {
   public static run(
     options: IScriptProcessOptions,
   ): Promise<IScriptProcessResult> {
+    if (options.observationSignal?.aborted === true)
+      return Promise.resolve<IScriptProcessResult>({
+        result: { code: null, signal: null },
+        outcome: "unknown",
+      });
     return new Promise<IScriptProcessResult>(
       (resolve: (value: IScriptProcessResult) => void): void => {
         let child: ChildProcess;
@@ -53,8 +58,12 @@ export class ScriptProcess {
           if (settled) return;
           settled = true;
           if (timer !== undefined) clearTimeout(timer);
+          options.observationSignal?.removeEventListener(
+            "abort",
+            onObservationEnd,
+          );
           child.removeListener("spawn", onSpawn);
-          child.removeListener("error", onError);
+          if (!uncertain) child.removeListener("error", onError);
           child.removeListener("exit", onExit);
           child.removeListener("close", onClose);
           child.stdout?.removeListener("data", onStdout);
@@ -91,14 +100,17 @@ export class ScriptProcess {
         /** Distinguish an existing launcher from failed OS process creation. */
         const onSpawn: () => void = (): void => {
           spawned = true;
+          if (child.pid !== undefined) options.onSpawn?.(child.pid);
           options.onPhase?.("running");
         };
         /** Preserve the actual error privately until the process closure boundary. */
         const onError: (error: Error) => void = (error: Error): void => {
+          if (settled) return;
           failure = error;
         };
         /** Missing pipe observations force an unknown result rather than successful completion. */
         const onStreamError: (error: Error) => void = (error: Error): void => {
+          if (settled) return;
           failure = error;
           if (timer === undefined && options.policy === "capture")
             timer = setTimeout((): void => finish(true), 2000);
@@ -137,6 +149,11 @@ export class ScriptProcess {
         const onStderr: (bytes: Buffer) => void = (bytes: Buffer): void => {
           options.log?.append("stderr", bytes);
         };
+        /** Release only observation; cooperative headless shutdown is owned by its control channel. */
+        const onObservationEnd: () => void = (): void => finish(true);
+        options.observationSignal?.addEventListener("abort", onObservationEnd, {
+          once: true,
+        });
         child.once("spawn", onSpawn);
         child.once("error", onError);
         child.once("exit", onExit);

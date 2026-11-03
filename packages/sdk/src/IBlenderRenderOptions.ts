@@ -1,4 +1,4 @@
-/** Start a native GUI render using the current scene camera, frame, and engine. */
+/** Start a native render using the current scene camera, frame, and engine; owned headless calls wait for native completion. */
 export interface IBlenderRenderOptions {
   /** Caller-known canonical UUID retained before transmission; duplicate IDs are rejected without replay. */
   renderId: string;

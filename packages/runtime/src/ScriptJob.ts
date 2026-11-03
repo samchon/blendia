@@ -31,7 +31,10 @@ export class ScriptJob {
   private closed: boolean = false;
 
   /** Snapshot credentials once for capture redaction and begin only after admission. */
-  private constructor(request: IScriptJobRequest) {
+  private constructor(
+    request: IScriptJobRequest,
+    observationSignal?: AbortSignal,
+  ) {
     const environment: NodeJS.ProcessEnv = { ...process.env };
     const token: string =
       request.options.connection?.token ?? environment.BLENDIA_TOKEN ?? "";
@@ -45,6 +48,7 @@ export class ScriptJob {
         execution = await runScriptExecution(request, {
           policy: "capture",
           environment,
+          observationSignal,
           log: this.log,
           onPhase: (phase: IScriptJobSnapshot["phase"]): void => {
             if (phase === "running" || phase === "draining")
@@ -65,6 +69,22 @@ export class ScriptJob {
 
   /** Reserve one record before any staging or process effect; input arrays/options are snapshotted. */
   public static start(request: IScriptJobRequest): ScriptJob {
+    return ScriptJob.create(request);
+  }
+
+  /** @internal Owned one-shot parent loss stops observation only; it never kills or cancels user execution. */
+  public static startOwned(
+    request: IScriptJobRequest,
+    observationSignal: AbortSignal,
+  ): ScriptJob {
+    return ScriptJob.create(request, observationSignal);
+  }
+
+  /** Reserve and snapshot once for both normal jobs and the owned headless adapter. */
+  private static create(
+    request: IScriptJobRequest,
+    observationSignal?: AbortSignal,
+  ): ScriptJob {
     if (ScriptJob.records.size >= 16)
       throw new Error(
         "blendia: job registry is full; close a terminal job before starting another.",
@@ -93,7 +113,7 @@ export class ScriptJob {
                   : { ...request.options.connection },
             },
           };
-    const job: ScriptJob = new ScriptJob(copied);
+    const job: ScriptJob = new ScriptJob(copied, observationSignal);
     ScriptJob.records.set(job.id, job);
     return job;
   }

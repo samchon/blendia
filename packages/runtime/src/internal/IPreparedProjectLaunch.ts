@@ -1,6 +1,6 @@
 /** Private spawn data; never serialize environment or connection credentials. */
 export interface IPreparedProjectLaunch {
-  /** Current process.execPath, with no global executable lookup. */
+  /** Current Node for TypeScript or the caller's explicit owned Blender binary; no global lookup. */
   executable: string;
   /** Public launcher, optional project, original entry, and script arguments. */
   args: string[];

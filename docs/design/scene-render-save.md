@@ -1,6 +1,6 @@
 # Author a scene, render a PNG, and save a Blender copy
 
-Tracking: [SDK #2](https://github.com/samchon/blendia/issues/2), [lifecycle #3](https://github.com/samchon/blendia/issues/3), [validation #6](https://github.com/samchon/blendia/issues/6), and [PR #14](https://github.com/samchon/blendia/pull/14). This guide describes the scene-to-output source API and its ownership limits. Real Blender acceptance and delivered artifacts belong in the tracking records; this guide does not certify a successful run. Headless execution and [MCP/native image delivery #5](https://github.com/samchon/blendia/issues/5) remain separate following slices.
+Tracking: [SDK #2](https://github.com/samchon/blendia/issues/2), [lifecycle #3](https://github.com/samchon/blendia/issues/3), [validation #6](https://github.com/samchon/blendia/issues/6), and [PR #14](https://github.com/samchon/blendia/pull/14). This guide describes the scene-to-output source API and its ownership limits. Real Blender acceptance and delivered artifacts belong in the tracking records; this guide does not certify a successful run. [Owned headless execution](headless-projects.md) reuses these methods with a separate blocking lifetime; [MCP/native image delivery #5](https://github.com/samchon/blendia/issues/5) remains following work.
 
 ## Connect and prepare
 
@@ -41,7 +41,7 @@ Cameras and lights are unparented and aim from world location toward a distinct 
 
 ## Native GUI render and recovery
 
-`startRender` requires a caller-known canonical `renderId` UUID and optional width/height, defaulting to 512 each. The SDK's universal outer bound is `1..4096` per dimension, at most 16777216 pixels; the producer also checks the current Blender RNA bounds before its first setter. A native context can reject dimensions such as `1..3`; invalid dimensions are refused rather than silently clamped. Rendering uses the current active camera, frame, and engine in a Blender GUI window. Multiview and cropped render borders are refused so the owned PNG retains the requested job dimensions. Background/headless execution is a separate following slice.
+`startRender` requires a caller-known canonical `renderId` UUID and optional width/height, defaulting to 512 each. The SDK's universal outer bound is `1..4096` per dimension, at most 16777216 pixels; the producer also checks the current Blender RNA bounds before its first setter. A native context can reject dimensions such as `1..3`; invalid dimensions are refused rather than silently clamped. The GUI path renders the current active camera, frame, and engine asynchronously in a Blender window; [owned headless execution](headless-projects.md#main-thread-and-finite-conditions) instead blocks until native completion. Multiview and cropped render borders are refused so the owned PNG retains the requested job dimensions.
 
 Requested resolution, percentage 100, and PNG 8-bit RGBA settings persist in the scene, so a later saved copy carries them. The API does not temporarily swap the camera or engine. Only `render.filepath` is temporary: restoration occurs only while it still identifies the owned stage and the data lifetime permits restoration. A different user-selected output path is preserved rather than overwritten.
 

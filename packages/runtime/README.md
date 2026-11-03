@@ -68,4 +68,34 @@ Known effective connection tokens are redacted across output chunks using a sepa
 
 At most 16 live or terminal job records are retained. `getScriptJob(id)` looks up this process's retained record only. `close()` releases a terminal record and logs; active close is refused as BUSY and never kills anything. Terminal records are not silently evicted. This registry cap does not override Blender's exclusive connection owner, and a later CLI process cannot inspect an earlier job.
 
+`runHeadlessProject(options)` runs one saved project script against a newly owned background Blender. Supply `entry`, an explicit `blenderExecutable`, and an explicit `extensionDirectory` containing `headless_bootstrap.py` with its matching Python core. Both a source extension directory and an actual extracted ZIP installation work; there is no repository-path fallback, automatic extension search, or Python source copy. Optional `cwd`, `project`, and `args` keep their project-runner meanings. Optional `blendFile` loads an existing .blend before bootstrap; otherwise Blender uses factory startup data. Existing GUI credentials are not adopted, and `connection` is not a headless option.
+
+```ts
+import {
+  type IHeadlessProjectResult,
+  runHeadlessProject,
+} from "@blendia/runtime";
+
+async function main(): Promise<void> {
+  const result: IHeadlessProjectResult = await runHeadlessProject({
+    blenderExecutable: "/path/to/blender",
+    extensionDirectory: "/path/to/installed/blendia",
+    cwd: "/path/to/project",
+    project: "tsconfig.json",
+    entry: "src/scene.ts",
+  });
+  console.log(result);
+}
+
+void main().catch(console.error);
+```
+
+`startupTimeoutMs` defaults to 120000 and covers only native Blender readiness plus private control authentication. `shutdownTimeoutMs` defaults to 10000 and covers cooperative completion acknowledgment and Blender exit/pipe closure after a known script terminal result. Both accept safe integers from 100 through 3600000 ms. Neither bounds the user's script, `ttsx`, typia, or cold native preparation. SDK response deadlines are separate. Invalid options or unavailable explicit prerequisite paths reject before creating a private workspace or launching a process.
+
+The one-shot captures and ignores child stdin, returns the existing script snapshot in `script`, and reports Blender's raw `blender` status, `blenderOutcome`, and observed `blenderPid` separately. `scriptLogs` and `blenderLogs` contain separate bounded retained journal pages with cursor gaps; each process retains at most 64 KiB and 1024 entries. `completed` requires a known script terminal result, cooperative acknowledgment, and ordinary Blender zero exit with pipe closure. It can still contain a nonzero script exit. A script zero alone establishes no composite success.
+
+Unknown startup, control loss, native status, or pipe completion retains runtime-owned private config/readiness storage and reports `cleanup: "retained"` with `retainedDirectory`; that directory contains private credentials. Capture readers and process references are released so a surviving child cannot indefinitely pin the caller's event loop. Either Blender, the TypeScript launcher, or their unknown descendants may remain active after an unknown result; releasing observation never kills or proves termination. The original script file is not copied or deleted, and this entry does not stage a Text input. Known cleanup removes only unchanged owned config/readiness files and an empty owned directory, without recursive deletion or touching explicit user outputs.
+
+Bridge artifact IDs and bridge-owned PNGs expire with the owned Blender session. Persist a PNG or .blend by explicitly publishing it to a user-selected path from the same TypeScript script. Process exit does not automatically save a file, establish rollback, or make an expired bridge artifact a durable URI. This is a foreground one-shot, with no persistent session, cancellation, process-tree termination, replay, or takeover of a user's Blender process.
+
 `discoverBlenderSessions({ directory })` scans one explicit descriptor directory and returns sanitized session metadata without tokens or socket access. `probe: true` explicitly permits bounded hello/disconnect observations, briefly reserving idle sessions and reporting BUSY without takeover. Scan truncation and probe-budget truncation are separate. `doctorProject({ cwd, project })` reports actual Node, public ttsx, dependency metadata, and config candidates with `execution: "not-tested"`; it does not execute a compiler or verify Go, network, plugins, or native first-use preparation. The source CLI itself must bootstrap before reporting metadata. Initial native/plugin preparation can take several minutes and require network access.

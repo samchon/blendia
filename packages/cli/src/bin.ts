@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {
+  type IHeadlessProjectResult,
   type IProjectScriptResult,
   type IScriptJobSnapshot,
   type ITextMacroResult,
@@ -7,6 +8,7 @@ import {
   discoverBlenderSessions,
   doctorProject,
   redactKnownToken,
+  runHeadlessProject,
   runProjectScript,
   runTextMacro,
 } from "@blendia/runtime";
@@ -33,6 +35,7 @@ async function main(): Promise<void> {
         "       blendia run-text [--jsonl] --cwd <dir> --source-path <logical.ts> --input-file <utf8> [--project <tsconfig>] [--origin <label>] [-- <script args...>]",
         "       blendia sessions --directory <dir> [--probe] [--probe-timeout-ms <100..5000>]",
         "       blendia doctor [--cwd <dir>] [--project <tsconfig>]",
+        "       blendia headless --blender <executable> --extension-directory <dir> [--blend-file <input.blend>] [--cwd <dir>] [--project <tsconfig>] [--startup-timeout-ms <100..3600000>] [--shutdown-timeout-ms <100..3600000>] <entry> [-- <script args...>]",
         "       blendia --help",
         "",
         "Run existing project TypeScript through ttsx using the current Node executable.",
@@ -43,6 +46,8 @@ async function main(): Promise<void> {
         "--jsonl captures bounded logs and terminal observations; stdin is ignored in this mode.",
         "sessions/doctor output JSON metadata; discovery probes require --probe and briefly acquire an idle lease.",
         "doctor does not execute the compiler or verify Go/network/native first-use preparation.",
+        "headless owns a fresh background Blender, captures both processes and emits one bounded result JSON.",
+        "Headless startup/shutdown deadlines do not bound user TypeScript or native plugin preparation.",
         "Start Blender's Blendia extension and set its credentials before a Blender script.",
         "",
       ].join("\n"),
@@ -60,6 +65,24 @@ async function main(): Promise<void> {
     process.stdout.write(
       JSON.stringify(await doctorProject(command.options)) + "\n",
     );
+    return;
+  }
+  if (command.kind === "headless") {
+    const result: IHeadlessProjectResult = await runHeadlessProject(
+      command.options,
+    );
+    process.stdout.write(JSON.stringify(result) + "\n");
+    process.exitCode =
+      result.outcome === "completed" &&
+      result.blenderOutcome === "exited" &&
+      result.blender?.code === 0 &&
+      result.blender.signal === null &&
+      result.script?.outcome === "exited" &&
+      result.script.result?.code === 0 &&
+      result.script.result.signal === null &&
+      result.cleanup === "removed"
+        ? 0
+        : 1;
     return;
   }
   if (command.jsonl === true) {

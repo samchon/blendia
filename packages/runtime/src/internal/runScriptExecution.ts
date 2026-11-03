@@ -14,6 +14,8 @@ export async function runScriptExecution(
   request: IScriptJobRequest,
   options: IScriptExecutionOptions,
 ): Promise<IScriptExecutionResult> {
+  if (options.observationSignal?.aborted === true)
+    return { result: { code: null, signal: null }, outcome: "unknown" };
   let stage: TextMacroStage | undefined;
   try {
     stage =

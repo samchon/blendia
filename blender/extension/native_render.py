@@ -1,4 +1,4 @@
-"""Observe native GUI render jobs without treating a callback as native closure."""
+"""Share render provenance and retirement while retaining native GUI invocation."""
 
 import os
 import time
@@ -71,7 +71,7 @@ class NativeRender:
         self.retiring = False
 
     def start(self, params):
-        """Apply explicit persistent settings and invoke one native GUI still render."""
+        """Apply persistent settings and invoke the adapter's native still operation."""
         require_keys(params, ("renderId",), ("width", "height"))
         identifier = self._identifier(params["renderId"])
         if identifier in self.seen_ids:
@@ -80,8 +80,7 @@ class NativeRender:
             raise BridgeError("LIMIT_EXCEEDED", "Start a new session after 4096 accepted render IDs")
         if self.busy or self.bridge.loading or bpy.app.is_job_running("RENDER"):
             raise BridgeError("BUSY", "A native render or filepath restoration is still active")
-        if bpy.app.background or bpy.context.window is None:
-            raise BridgeError("INVALID_CONTEXT", "This render operation requires a Blender GUI window")
+        execution_context = self._execution_context()
         if not self.session_id or self.session_id != self.bridge.session_id:
             raise BridgeError("INVALID_CONTEXT", "No current render session is active")
         scene = bpy.context.scene
@@ -123,7 +122,7 @@ class NativeRender:
             scene.render.image_settings.color_depth = "8"
             scene.render.image_settings.color_mode = "RGBA"
             scene.render.filepath = str(stage)
-            result = bpy.ops.render.render("INVOKE_DEFAULT", write_still=True, scene=scene.name)
+            result = bpy.ops.render.render(execution_context, write_still=True, scene=scene.name)
             if not result.intersection({"RUNNING_MODAL", "FINISHED"}):
                 job["launchError"] = "Native render invocation was cancelled before completion"
         except Exception as error:
@@ -296,12 +295,21 @@ class NativeRender:
         return os.path.normcase(os.path.abspath(current)) == os.path.normcase(str(job["stage"]))
 
     def _install(self):
+        self._install_handlers()
+        if not bpy.app.timers.is_registered(self.timer):
+            bpy.app.timers.register(self.timer, first_interval=0.05, persistent=True)
+
+    def _install_handlers(self):
         for name, handler in self.handlers:
             callbacks = getattr(bpy.app.handlers, name)
             if handler not in callbacks:
                 callbacks.append(handler)
-        if not bpy.app.timers.is_registered(self.timer):
-            bpy.app.timers.register(self.timer, first_interval=0.05, persistent=True)
+
+    def _execution_context(self):
+        """Keep the GUI adapter's context refusal separate from shared render state."""
+        if bpy.app.background or bpy.context.window is None:
+            raise BridgeError("INVALID_CONTEXT", "This render operation requires a Blender GUI window")
+        return "INVOKE_DEFAULT"
 
     def _remove_handlers(self):
         for name, handler in self.handlers:
