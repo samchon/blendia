@@ -74,7 +74,7 @@ Rendering retains the current camera, frame, and engine; requested resolution/PN
 
 To retain a PNG or `.blend`, the script must explicitly call `saveArtifact` and `saveBlendCopy` at user-selected destinations before its session ends. Existing parent-directory, extension, overwrite, working-filepath, and relative-asset rules still apply. Process completion does not save anything implicitly. Explicit published user files survive process teardown and are never bootstrap cleanup targets. [Native Save Copy](https://docs.blender.org/api/5.2/bpy.ops.wm.html#bpy.ops.wm.save_as_mainfile) does not switch the working document to the saved copy.
 
-Bridge artifact IDs and private PNGs expire with the owned Blender/session and cannot be used later as durable GUI or MCP resources. A future MCP wrapper must expose an actually retained copy or explicit user output with a real owner/lifetime, rather than an expired bridge artifact. This one-shot API adds no persistent artifact service.
+Bridge artifact IDs and private PNGs expire with the owned Blender/session and cannot be used later as durable GUI or MCP resources. The [MCP facade](mcp-agent-tools.md#owned-headless-execution) preserves this boundary: it runs the same one-shot service and does not turn its expired bridge artifacts into image resources. Save explicit user outputs from the script before exit. This one-shot API adds no persistent artifact service.
 
 ## Unknown outcomes and Windows
 

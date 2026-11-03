@@ -1,2 +1,15 @@
-/** Infrastructure entrypoint; the public API will arrive with a real consumer. */
-export {};
+export { BlendiaMcpTransport } from "./BlendiaMcpTransport";
+export { createBlendiaMcpServer } from "./createBlendiaMcpServer";
+export type { IBlendiaMcpErrorResult } from "./IBlendiaMcpErrorResult";
+export type { IBlendiaMcpFailure } from "./IBlendiaMcpFailure";
+export type { IBlendiaMcpHeadlessConfiguration } from "./IBlendiaMcpHeadlessConfiguration";
+export type { IBlendiaMcpHeadlessOptions } from "./IBlendiaMcpHeadlessOptions";
+export type { IBlendiaMcpHeadlessResult } from "./IBlendiaMcpHeadlessResult";
+export type { IBlendiaMcpImageResult } from "./IBlendiaMcpImageResult";
+export type { IBlendiaMcpJobReference } from "./IBlendiaMcpJobReference";
+export type { IBlendiaMcpLogQuery } from "./IBlendiaMcpLogQuery";
+export type { IBlendiaMcpOptions } from "./IBlendiaMcpOptions";
+export type { IBlendiaMcpResult } from "./IBlendiaMcpResult";
+export type { IBlendiaMcpScriptOptions } from "./IBlendiaMcpScriptOptions";
+export type { IBlendiaMcpSuccess } from "./IBlendiaMcpSuccess";
+export { MAX_MCP_IMAGE_BYTES } from "./MAX_MCP_IMAGE_BYTES";
