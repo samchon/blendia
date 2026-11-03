@@ -1,6 +1,10 @@
 import { type IBlendiaCommand, parseBlendiaCommand } from "blendia";
 import assert from "node:assert/strict";
 
+import type { IHeadlessProjectOptions } from "../../../../packages/runtime/src/IHeadlessProjectOptions";
+import type { IPreparedHeadlessProject } from "../../../../packages/runtime/src/internal/IPreparedHeadlessProject";
+import { prepareHeadlessProject } from "../../../../packages/runtime/src/internal/prepareHeadlessProject";
+
 /**
  * Keep explicit owned-Blender launcher options separate from the user's project arguments.
  *
@@ -9,11 +13,12 @@ import assert from "node:assert/strict";
  * 2. Reordered paths and bounded deadlines preserve frozen Unicode input and script-owned tails.
  * 3. Repeated, unknown, missing, blank, and option-like launcher operands fail before an entry is admitted.
  * 4. Deadline values accept inclusive decimal bounds and reject fractional, unsafe, and out-of-range values.
+ * 5. Explicit null deadlines from JavaScript callers fail in runtime admission before prerequisite filesystem access.
  *
- * @evidence contracts/testing.md#behavioral-verification Invoke the production command parser consumed by the CLI and assert explicit headless paths, entry, optional values, timeout admission, and verbatim script arguments without launching Blender or a project.
- * @evidence contracts/testing.md#independent-expectations The command's required Blender/extension/entry contract, unique pre-entry options, single immediate separator, and decimal safe-integer deadline range 100 through 3600000 determine literal expectations independently of parser branches.
- * @evidence contracts/testing.md#distinguishing-cases Cover help, omitted defaults, reordered frozen Unicode argv, both deadline endpoints, repeated/missing/blank/dash operands, invalid numeric spelling, and option-like tail tokens; process observation, cooperative shutdown, retention, and persistence remain actual-product checks.
- * @evidence contracts/testing.md#execution-ownership DynamicExecutor discovers this named CLI unit through the existing source consumer, with no child mocks, filesystem fixtures, lifecycle classifier, test-only export, or upstream test.
+ * @evidence contracts/testing.md#behavioral-verification Invoke the production command parser for headless arguments and the actual runtime preflight for explicit null deadlines; its precise deadline error distinguishes admission failure from later prerequisite-path failure without starting Blender or a project.
+ * @evidence contracts/testing.md#independent-expectations Required paths and entry, unique pre-entry options, the single separator, decimal safe-integer range 100 through 3600000, and defaults applying only to undefined determine observations independently of parsing and preparation branches.
+ * @evidence contracts/testing.md#distinguishing-cases Cover help, omitted defaults, frozen Unicode argv, deadline endpoints, malformed operands and numeric spelling, script tails, and explicit null in each runtime deadline; process observation, cooperative shutdown, retention, and persistence remain actual-product checks.
+ * @evidence contracts/testing.md#execution-ownership DynamicExecutor discovers this named case through the CLI parser and the existing production preflight import; malformed JavaScript deadline inputs need no child mocks, filesystem fixtures, lifecycle classifier, test-only export, or upstream test.
  */
 export function test_headless_arguments(): void {
   assert.deepEqual(parseBlendiaCommand(["headless", "--help"]), {
@@ -210,4 +215,30 @@ export function test_headless_arguments(): void {
           parseBlendiaCommand([...prefix, flag, value, "scene.ts"]),
         Error,
       );
+
+  // These malformed JavaScript options target runtime admission, not the string parser.
+  const invalidDeadlines: readonly unknown[] = [
+    {
+      entry: "scene.ts",
+      blenderExecutable: "blender",
+      extensionDirectory: "extension",
+      startupTimeoutMs: null,
+    },
+    {
+      entry: "scene.ts",
+      blenderExecutable: "blender",
+      extensionDirectory: "extension",
+      shutdownTimeoutMs: null,
+    },
+  ];
+  for (const input of invalidDeadlines)
+    assert.throws(
+      (): IPreparedHeadlessProject =>
+        prepareHeadlessProject(input as IHeadlessProjectOptions),
+      {
+        name: "Error",
+        message:
+          "blendia: headless observation deadlines must be integers from 100 through 3600000 ms.",
+      },
+    );
 }

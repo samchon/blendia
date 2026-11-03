@@ -52,8 +52,10 @@ export function prepareHeadlessProject(
     throw new Error(
       "blendia: headless script arguments must be strings without NUL.",
     );
-  const startupTimeoutMs: number = options.startupTimeoutMs ?? 120000;
-  const shutdownTimeoutMs: number = options.shutdownTimeoutMs ?? 10000;
+  const startupTimeoutMs: number =
+    options.startupTimeoutMs === undefined ? 120000 : options.startupTimeoutMs;
+  const shutdownTimeoutMs: number =
+    options.shutdownTimeoutMs === undefined ? 10000 : options.shutdownTimeoutMs;
   for (const value of [startupTimeoutMs, shutdownTimeoutMs])
     if (!Number.isSafeInteger(value) || value < 100 || value > 3600000)
       throw new Error(
