@@ -35,6 +35,19 @@ export default {
       },
     },
     {
+      name: "bounded LLM array and SDK tuple representation boundary",
+      type: "typescript",
+      files: ["src/BlendiaMcpSceneMapping.ts"],
+      symbol: "type",
+      reference: {
+        type: "markdown",
+        root: "../../.agents/skills",
+        files: ["contracts/common.md", "contracts/performance.md"],
+        symbol: "h2",
+        checklist: true,
+      },
+    },
+    {
       name: "typed MCP composition",
       type: "typescript",
       files: ["src/createBlendiaMcpServer.ts"],

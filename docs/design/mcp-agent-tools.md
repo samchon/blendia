@@ -32,6 +32,8 @@ First-use native compiler/plugin preparation can require network access, Go tool
 
 `tools/list` derives method names, parameters, documentation, and outputs from the actual [controller](../../packages/mcp/src/BlendiaMcpController.ts), using `typia.llm.application` and `@typia/mcp`. The names below are controller/tool names, without a separate hand-maintained schema or duplicate tool registry. Use the host's discovered schema for each method's parameter object and required fields.
 
+Spatial and RGB triples in MCP are JSON number arrays with exactly three finite components, including transform fields, mesh vertices, camera/light placement, and material/light colors. Named MCP DTOs adapt those inputs and returned snapshots, including inherited object fields and nested scene-page objects; the SDK's native tuple contract remains unchanged. The [production mapper](../../packages/mcp/src/BlendiaMcpSceneMapping.ts) checks exact length and finite indexed values before constructing fresh SDK tuples, without truncation or coercion; SDK identity, numeric, and topology bounds still apply. The [array type's length tags](../../packages/mcp/src/BlendiaMcpVector3.ts) become LLM schema descriptions rather than an enforced schema length constraint, so actual mapper admission owns that guarantee.
+
 | Purpose | Tools | Ownership |
 | --- | --- | --- |
 | Live connection | `connect`, `getSession`, `disconnect` | One explicitly configured SDK writer lease |

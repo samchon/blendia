@@ -10,39 +10,40 @@ import {
 } from "@blendia/runtime";
 import type {
   BlenderRenderJob,
-  IBlenderAreaLightOptions,
-  IBlenderAreaLightSnapshot,
   IBlenderArtifactChunk,
   IBlenderArtifactHandle,
   IBlenderArtifactReadOptions,
   IBlenderArtifactSaveOptions,
-  IBlenderCameraOptions,
-  IBlenderCameraSnapshot,
   IBlenderCubeOptions,
   IBlenderMaterialAssignment,
-  IBlenderMaterialOptions,
-  IBlenderMaterialSnapshot,
-  IBlenderMeshOptions,
-  IBlenderMeshSnapshot,
   IBlenderObjectHandle,
-  IBlenderObjectSnapshot,
-  IBlenderObjectTransform,
   IBlenderRenderHandle,
   IBlenderRenderOptions,
   IBlenderSaveOptions,
   IBlenderSavedFile,
   IBlenderSceneQuery,
-  IBlenderSceneSnapshot,
   IBlenderSession,
 } from "@blendia/sdk";
 
 import { BlendiaMcpContext } from "./BlendiaMcpContext";
+import { BlendiaMcpSceneMapping } from "./BlendiaMcpSceneMapping";
+import type { IBlendiaMcpAreaLightOptions } from "./IBlendiaMcpAreaLightOptions";
+import type { IBlendiaMcpAreaLightSnapshot } from "./IBlendiaMcpAreaLightSnapshot";
+import type { IBlendiaMcpCameraOptions } from "./IBlendiaMcpCameraOptions";
+import type { IBlendiaMcpCameraSnapshot } from "./IBlendiaMcpCameraSnapshot";
 import type { IBlendiaMcpHeadlessOptions } from "./IBlendiaMcpHeadlessOptions";
 import type { IBlendiaMcpHeadlessResult } from "./IBlendiaMcpHeadlessResult";
 import type { IBlendiaMcpImageResult } from "./IBlendiaMcpImageResult";
 import type { IBlendiaMcpJobReference } from "./IBlendiaMcpJobReference";
 import type { IBlendiaMcpLogQuery } from "./IBlendiaMcpLogQuery";
+import type { IBlendiaMcpMaterialOptions } from "./IBlendiaMcpMaterialOptions";
+import type { IBlendiaMcpMaterialSnapshot } from "./IBlendiaMcpMaterialSnapshot";
+import type { IBlendiaMcpMeshOptions } from "./IBlendiaMcpMeshOptions";
+import type { IBlendiaMcpMeshSnapshot } from "./IBlendiaMcpMeshSnapshot";
+import type { IBlendiaMcpObjectSnapshot } from "./IBlendiaMcpObjectSnapshot";
+import type { IBlendiaMcpObjectTransform } from "./IBlendiaMcpObjectTransform";
 import type { IBlendiaMcpResult } from "./IBlendiaMcpResult";
+import type { IBlendiaMcpSceneSnapshot } from "./IBlendiaMcpSceneSnapshot";
 import type { IBlendiaMcpScriptOptions } from "./IBlendiaMcpScriptOptions";
 
 /** Generated model-tool application over the existing SDK and captured runtime, with no public credentials or private configuration.
@@ -83,10 +84,12 @@ export class BlendiaMcpController {
   /** Create a cube through the actual SDK; invalid or oversized requests are rejected. */
   public async createCube(
     options: IBlenderCubeOptions,
-  ): Promise<IBlendiaMcpResult<IBlenderObjectSnapshot>> {
+  ): Promise<IBlendiaMcpResult<IBlendiaMcpObjectSnapshot>> {
     return this.context.execute(
-      (): Promise<IBlenderObjectSnapshot> =>
-        this.context.current().createCube(options),
+      async (): Promise<IBlendiaMcpObjectSnapshot> =>
+        BlendiaMcpSceneMapping.object(
+          await this.context.current().createCube(options),
+        ),
       true,
     );
   }
@@ -94,21 +97,27 @@ export class BlendiaMcpController {
   /** Read fresh local properties for a current-generation object handle. */
   public async getObject(
     object: IBlenderObjectHandle,
-  ): Promise<IBlendiaMcpResult<IBlenderObjectSnapshot>> {
+  ): Promise<IBlendiaMcpResult<IBlendiaMcpObjectSnapshot>> {
     return this.context.execute(
-      (): Promise<IBlenderObjectSnapshot> =>
-        this.context.current().getObject(object),
+      async (): Promise<IBlendiaMcpObjectSnapshot> =>
+        BlendiaMcpSceneMapping.object(
+          await this.context.current().getObject(object),
+        ),
       false,
     );
   }
 
   /** Apply a nonempty local transform using XYZ Euler radians and existing SDK bounds. */
   public async setTransform(
-    update: IBlenderObjectTransform,
-  ): Promise<IBlendiaMcpResult<IBlenderObjectSnapshot>> {
+    update: IBlendiaMcpObjectTransform,
+  ): Promise<IBlendiaMcpResult<IBlendiaMcpObjectSnapshot>> {
     return this.context.execute(
-      (): Promise<IBlenderObjectSnapshot> =>
-        this.context.current().setTransform(update),
+      async (): Promise<IBlendiaMcpObjectSnapshot> =>
+        BlendiaMcpSceneMapping.object(
+          await this.context
+            .current()
+            .setTransform(BlendiaMcpSceneMapping.transform(update)),
+        ),
       true,
     );
   }
@@ -116,32 +125,42 @@ export class BlendiaMcpController {
   /** Read one fresh bounded UID-ordered scene page; pass nextCursor explicitly for continuation. */
   public async inspectScene(
     query: IBlenderSceneQuery,
-  ): Promise<IBlendiaMcpResult<IBlenderSceneSnapshot>> {
+  ): Promise<IBlendiaMcpResult<IBlendiaMcpSceneSnapshot>> {
     return this.context.execute(
-      (): Promise<IBlenderSceneSnapshot> =>
-        this.context.current().inspectScene(query),
+      async (): Promise<IBlendiaMcpSceneSnapshot> =>
+        BlendiaMcpSceneMapping.scene(
+          await this.context.current().inspectScene(query),
+        ),
       false,
     );
   }
 
   /** Create bounded bulk geometry without silent topology repair. */
   public async createMesh(
-    options: IBlenderMeshOptions,
-  ): Promise<IBlendiaMcpResult<IBlenderMeshSnapshot>> {
+    options: IBlendiaMcpMeshOptions,
+  ): Promise<IBlendiaMcpResult<IBlendiaMcpMeshSnapshot>> {
     return this.context.execute(
-      (): Promise<IBlenderMeshSnapshot> =>
-        this.context.current().createMesh(options),
+      async (): Promise<IBlendiaMcpMeshSnapshot> =>
+        BlendiaMcpSceneMapping.mesh(
+          await this.context
+            .current()
+            .createMesh(BlendiaMcpSceneMapping.meshOptions(options)),
+        ),
       true,
     );
   }
 
   /** Create an opaque Principled material using scene-linear RGB. */
   public async createMaterial(
-    options: IBlenderMaterialOptions,
-  ): Promise<IBlendiaMcpResult<IBlenderMaterialSnapshot>> {
+    options: IBlendiaMcpMaterialOptions,
+  ): Promise<IBlendiaMcpResult<IBlendiaMcpMaterialSnapshot>> {
     return this.context.execute(
-      (): Promise<IBlenderMaterialSnapshot> =>
-        this.context.current().createMaterial(options),
+      async (): Promise<IBlendiaMcpMaterialSnapshot> =>
+        BlendiaMcpSceneMapping.material(
+          await this.context
+            .current()
+            .createMaterial(BlendiaMcpSceneMapping.materialOptions(options)),
+        ),
       true,
     );
   }
@@ -149,32 +168,42 @@ export class BlendiaMcpController {
   /** Assign one material to a whole local single-user mesh; shared/linked data is refused. */
   public async assignMaterial(
     assignment: IBlenderMaterialAssignment,
-  ): Promise<IBlendiaMcpResult<IBlenderObjectSnapshot>> {
+  ): Promise<IBlendiaMcpResult<IBlendiaMcpObjectSnapshot>> {
     return this.context.execute(
-      (): Promise<IBlenderObjectSnapshot> =>
-        this.context.current().assignMaterial(assignment),
+      async (): Promise<IBlendiaMcpObjectSnapshot> =>
+        BlendiaMcpSceneMapping.object(
+          await this.context.current().assignMaterial(assignment),
+        ),
       true,
     );
   }
 
   /** Create an aimed unparented camera; setActive permanently changes scene.camera. */
   public async createCamera(
-    options: IBlenderCameraOptions,
-  ): Promise<IBlendiaMcpResult<IBlenderCameraSnapshot>> {
+    options: IBlendiaMcpCameraOptions,
+  ): Promise<IBlendiaMcpResult<IBlendiaMcpCameraSnapshot>> {
     return this.context.execute(
-      (): Promise<IBlenderCameraSnapshot> =>
-        this.context.current().createCamera(options),
+      async (): Promise<IBlendiaMcpCameraSnapshot> =>
+        BlendiaMcpSceneMapping.camera(
+          await this.context
+            .current()
+            .createCamera(BlendiaMcpSceneMapping.cameraOptions(options)),
+        ),
       true,
     );
   }
 
   /** Create an aimed area light with explicit finite placement and illumination. */
   public async createAreaLight(
-    options: IBlenderAreaLightOptions,
-  ): Promise<IBlendiaMcpResult<IBlenderAreaLightSnapshot>> {
+    options: IBlendiaMcpAreaLightOptions,
+  ): Promise<IBlendiaMcpResult<IBlendiaMcpAreaLightSnapshot>> {
     return this.context.execute(
-      (): Promise<IBlenderAreaLightSnapshot> =>
-        this.context.current().createAreaLight(options),
+      async (): Promise<IBlendiaMcpAreaLightSnapshot> =>
+        BlendiaMcpSceneMapping.areaLight(
+          await this.context
+            .current()
+            .createAreaLight(BlendiaMcpSceneMapping.areaLightOptions(options)),
+        ),
       true,
     );
   }
