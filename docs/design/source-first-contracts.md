@@ -1,0 +1,20 @@
+# Source-first contracts and repository cleanup
+
+This debt-only mission starts from merged PR #9, before any changes from the paused UI/Text PR #10. Its useful planning seed establishes the Draft before implementation. The UI feature working tree was preserved separately; it must not be mixed into this cleanup.
+
+## Decided requirements
+
+1. Local workspace entrypoints resolve TypeScript source and run through ttsx without a prior build. Follow the inspected AutoMovie source-main/source-exports and separate publishConfig distribution pattern. Local units and Evidence must not require generated lib output. Ordinary build output remains a distribution concern, not a local development prerequisite.
+2. Replace every inline TypeScript object type (AST TypeLiteral) with a named declaration in its own appropriately named file, including command unions such as IBlendiaCommand. Preserve actual public behavior and avoid manufacturing AST/configuration assertion tests.
+3. Remove blanket performance-contract boilerplate across packages. Retain only performance claims that are necessary, specific and supported by the declaration; preserve meaningful common/testing contracts and the required package-local @wrtnlabs/evidence integration.
+4. Personal records under .agents/local remain ignored local data and must never enter an index, stash or commit. Portable AGENTS/skills remain sufficient in a fresh clone. Metadata-only inspection found the current local path absent from the index, HEAD, origin/master and fetched all-reference history; the older differently named tracked record was removed in PR #9. Do not expose private contents or rewrite history without authorization.
+5. Remove .github/workflows/verify.yml. Keep only build.yml and test.yml as workflows, assigning real source/configuration/format/Evidence and actual first-party unit jobs coherently between them.
+6. Remove tracked package LICENSE copies. Preserve the root LICENSE, prepare necessary copies only for distribution using the actual AutoMovie pattern, and ignore generated package copies. No tarballs, lib, node_modules, scratch artifacts or private records may be committed.
+
+## Verification and boundary
+
+Use direct applicable toolchain checks, existing meaningful units of implemented first-party logic, and a complete independent review. Do not add static configuration/manifest assertions, upstream tests, artificial source-compile/import probes, package/tarball smoke tests or an automated integration harness to demonstrate these changes. Gather all relevant failures first, correct them by cause in one batch, then perform the next full affected round.
+
+Keep the PR Draft through implementation. Record current-head self-review as COMMENT and require every configured check green on the exact source head before Ready and immediate merge. No UI/Text feature, material/render/jobs/MCP behavior, publication, version bump or release is part of this debt slice. Resume the preserved UI/Text mission only after the cleanup is merged and its contract is reconciled with the new source-first baseline.
+
+Tracking starts with #1 and completed infrastructure issue #7; a focused debt issue will hold the detailed acceptance and audit evidence. [AutoMovie](https://github.com/samchon/AutoMovie/tree/ba7f7569ac664aaf5540eb9dde5c5039850899c5) is a read-only reference, not a destination for edits.
