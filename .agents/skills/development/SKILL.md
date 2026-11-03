@@ -15,7 +15,7 @@ Every object type in repository-authored TypeScript must be a named interface in
 
 Separate logical steps with blank lines. Explain a non-obvious step's intent, premise, or reason in a nearby comment. Precede an inner comment with a blank line unless it opens its block. Production arrow functions are permitted; scenario exports follow [testing.md](testing.md).
 
-Shared `config` owns strict compiler settings, correctness lint through `@ttsc/lint`, complementary `@ttsc/evidence` declaration guards, and Prettier formatting. The common lint implementation belongs directly in `config/lint.config.ts`; a package's `lint.config.ts` re-exports it. Keep formatting diagnostics disabled in compiler lint.
+Shared `config` owns strict compiler settings, correctness lint through `@ttsc/lint`, complementary `@ttsc/evidence` declaration guards, and Prettier formatting. The common lint implementation belongs directly in `config/lint.config.ts`; a package's `lint.config.ts` re-exports it. The workspace's `@ttsc/lint` entry uses the public `enabled: false` option in each existing tsconfig to opt out of automatic discovery, while the explicit `lint` command checks those rules separately. Normal `ttsc` and `ttsx` retain the other configured and automatically discovered plugins, including typia. Keep formatting diagnostics disabled in compiler lint; see [validation](validation.md) for the additional diagnostics guard.
 
 ## Local source and distribution
 

@@ -2,7 +2,7 @@ import { evidence } from "@ttsc/evidence";
 import type { ITtscLintConfig } from "@ttsc/lint";
 
 /**
- * Shared correctness and evidence declaration guards, inherited by each package's lint configuration and checked during its normal type-aware build.
+ * Shared correctness and evidence declaration guards, inherited by each package's lint configuration and checked by its explicit development lint command.
  * Prettier owns formatting; its settings here do not emit diagnostics.
  */
 export default {

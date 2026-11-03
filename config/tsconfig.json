@@ -13,6 +13,13 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": ["node"],
+    "plugins": [
+      {
+        "transform": "@ttsc/lint",
+        "configFile": "lint.config.ts",
+        "enabled": false
+      }
+    ]
   }
 }

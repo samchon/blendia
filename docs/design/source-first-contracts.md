@@ -13,6 +13,14 @@ This debt-only mission starts from merged PR #9, before any changes from the pau
 
 ## Verification and boundary
 
+### Execution and development lint
+
+The subsequent macro slice preserves this source-first baseline while separating Blendia's development lint from automatic product execution. Existing shared and child tsconfigs opt out of their own `@ttsc/lint` entry through its public `enabled: false` setting. Other configured or automatically discovered plugins, including typia, continue under the ordinary toolchain policy; no global plugin bypass or alternate checking tsconfig is introduced.
+
+The additional `pnpm lint` command runs [config/checkLint.ts](../../config/checkLint.ts) through `ttsx` for config, the product packages, and the unit workspace. It uses the public `TtscCompiler` with an explicit lint-only plugin list against each workspace's existing tsconfig. That API has no `noEmit` option: the guard discards its private memory/temporary output without writing package `lib`. Normal `ttsc` builds, `ttsc --noEmit`, and material package-local Wrtn Evidence checks retain their roles. The guard adds development diagnostics rather than replacing emit or transformer validation. No runtime/core scene behavior or measured speedup is claimed by this configuration change. [Conventions](../conventions.md#compiler-exports-and-commands) own the executable command list.
+
+### Original debt acceptance
+
 Use direct applicable toolchain checks, existing meaningful units of implemented first-party logic, and a complete independent review. Do not add static configuration/manifest assertions, upstream tests, artificial source-compile/import probes, package/tarball smoke tests or an automated integration harness to demonstrate these changes. Gather all relevant failures first, correct them by cause in one batch, then perform the next full affected round.
 
 Keep the PR Draft through implementation. Record current-head self-review as COMMENT and require every configured check green on the exact source head before Ready and immediate merge. No UI/Text feature, material/render/jobs/MCP behavior, publication, version bump or release is part of this debt slice. Resume the preserved UI/Text mission only after the cleanup is merged and its contract is reconciled with the new source-first baseline.

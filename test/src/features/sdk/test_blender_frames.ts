@@ -50,9 +50,12 @@ export function test_blender_frames(): void {
     [0, 0, 0, 1, 0x7b],
     [0, 0, 0, 4, 0x22, 0xc3, 0x28, 0x22],
   ])
-    assert.throws(() => new BlenderFrameDecoder().push(Buffer.from(bytes)), {
-      code: "INVALID_FRAME",
-    });
+    assert.throws(
+      (): unknown[] => new BlenderFrameDecoder().push(Buffer.from(bytes)),
+      {
+        code: "INVALID_FRAME",
+      },
+    );
 
   const encoded: Buffer = BlenderFrameDecoder.encode({ id: 7, result: "한" });
   assert.equal(encoded.readUInt32BE(0), encoded.byteLength - 4);
@@ -72,7 +75,7 @@ export function test_blender_frames(): void {
   assert.equal(encodedLimit.byteLength, 1048580);
 
   for (const value of [undefined, "a".repeat(1048575), "한".repeat(400000)])
-    assert.throws(() => BlenderFrameDecoder.encode(value), {
+    assert.throws((): Buffer => BlenderFrameDecoder.encode(value), {
       code: "INVALID_ARGUMENT",
     });
 }

@@ -112,7 +112,7 @@ export function test_cli_arguments(): void {
     ["run", "--project", "a.json", "--project", "b.json", "scene.ts"],
   ];
   for (const input of invalid)
-    assert.throws(() => parseBlendiaCommand(input), Error);
+    assert.throws((): IBlendiaCommand => parseBlendiaCommand(input), Error);
 
   const textPrefix: readonly string[] = [
     "run-text",
@@ -277,5 +277,5 @@ export function test_cli_arguments(): void {
     [...textPrefix, "--origin", "--"],
   ];
   for (const input of invalidText)
-    assert.throws(() => parseBlendiaCommand(input), Error);
+    assert.throws((): IBlendiaCommand => parseBlendiaCommand(input), Error);
 }

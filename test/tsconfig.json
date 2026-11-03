@@ -3,7 +3,13 @@
   "compilerOptions": {
     "rootDir": "..",
     "noEmit": true,
-    "plugins": [{ "transform": "@ttsc/lint", "configFile": "lint.config.ts" }]
+    "plugins": [
+      {
+        "transform": "@ttsc/lint",
+        "configFile": "lint.config.ts",
+        "enabled": false
+      }
+    ]
   },
   "include": ["src"]
 }

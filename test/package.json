@@ -5,6 +5,7 @@
   "description": "Unit tests of Blendia's first-party protocol and CLI logic.",
   "scripts": {
     "build": "ttsc --noEmit",
+    "lint": "ttsx ../config/checkLint.ts",
     "start": "ttsx src/index.ts",
     "evidence": "evidence"
   },
