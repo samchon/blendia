@@ -52,6 +52,8 @@ await server.connect(new StdioServerTransport());
 
 소스에서 확인한 작은 추가 작업은 **미디어 응답 연결**이다. 현재 `McpControllerRegistrar`는 controller 반환값을 검증한 뒤 `structuredContent`에 넣으며, 기본 `content`는 빈 배열이다. `textFallback`을 켜면 JSON 텍스트가 추가된다. 반환 JSON에 이미지처럼 생긴 필드를 넣는 것만으로 MCP의 native image content가 되지는 않는다. image content를 반환하는 전용 handler 또는 작은 adapter를 SDK `McpServer`에 붙이는 방법을 검토하면 된다. MCP 서버를 처음부터 다시 만들 이유는 없다. [Registrar 소스](https://raw.githubusercontent.com/samchon/typia/master/packages/mcp/src/internal/McpControllerRegistrar.ts), [생성 함수 소스](https://raw.githubusercontent.com/samchon/typia/master/packages/mcp/src/index.ts), [MCP 도구 결과 사양](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
 
+**2026-11-03 버전 고정 후속 정정:** `@typia/mcp@15.2.2`와 `@modelcontextprotocol/sdk@1.32.2`의 배포 소스를 정적으로 확인한 결과, 위의 일반적인 SDK handler 추가 제안과 달리 직접 `registerTool`을 호출하여 typia의 low-level 도구 처리와 SDK의 별도 registry를 섞는 방식은 도구 노출·처리가 어긋날 수 있어 안전한 통합으로 볼 수 없다. 공개 `Transport.send`에서 허용된 도구의 메타데이터를 native image 응답으로 연결하는 래퍼는 아직 구현하지 않은 설계 후보이며, 실제 클라이언트 실행이나 이미지 표시로 입증된 결과가 아니다. 정확한 버전의 공개 소스와 선행 조건은 [MCP 후속 조사 #5](https://github.com/samchon/blendia/issues/5)에 기록했으며, 이는 현재 단계의 MCP 구현 완료 주장이 아니다.
+
 **MCP는 시각 디버깅 전용 프로토콜이 아니다.** 도구 실행, 구조화된 결과, 이미지, 리소스를 전달하는 일반 인터페이스이다. Blendia에서는 이미지뿐 아니라 세션 발견·API 탐색·장면 조회·TS 실행·job 제어를 제공할 수 있다. 시각 관찰은 여기에 실질적인 가치를 더하는 부분이며, 같은 관찰 기능을 SDK와 CLI에서도 사용할 수 있어야 한다.
 
 ## 3. 유사 구현 비교: 무엇을 제공하고 어디까지 검증되었는가

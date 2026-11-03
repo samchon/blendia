@@ -1,12 +1,7 @@
 # @blendia/mcp
 
-Blendia MCP integration boundary; infrastructure scaffold only.
+The planned Blendia MCP server will let AI clients use Blender through the shared TypeScript scripting interface.
 
-This private workspace currently exports an empty module. It has no usable
-product API or executable command. See the [workspace README](../../README.md)
-for verified development commands and implementation tracking.
+This package is not implemented or published. It currently provides no MCP tools, server command, or installation procedure.
 
-Local development resolves `src/index.ts`. `pnpm pack` builds `lib` through
-`prepack` and applies `publishConfig` so installed tarballs resolve emitted
-JavaScript and declarations. Publication remains disabled until real functionality
-and its consumer are implemented and verified.
+See the [Blendia overview](../../README.md) for the project's current status.

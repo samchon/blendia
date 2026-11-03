@@ -2,14 +2,22 @@
   "name": "blendia",
   "version": "0.1.0",
   "private": true,
-  "description": "Blendia command-line boundary; infrastructure scaffold only.",
-  "main": "src/index.ts",
+  "description": "Run project TypeScript against the existing Blender application.",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "bin": {
+    "blendia": "lib/bin.js"
+  },
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "rimraf lib && ttsc",
+    "start": "ttsx src/bin.ts",
     "prepack": "pnpm run build",
     "evidence": "evidence"
   },
@@ -28,6 +36,9 @@
   ],
   "publishConfig": {
     "access": "public",
+    "bin": {
+      "blendia": "lib/bin.js"
+    },
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
     "exports": {
@@ -37,6 +48,9 @@
       },
       "./package.json": "./package.json"
     }
+  },
+  "dependencies": {
+    "@blendia/runtime": "workspace:^"
   },
   "devDependencies": {
     "@ttsc/evidence": "catalog:samchon",

@@ -1,2 +1,2 @@
-/** Infrastructure entrypoint; the public API will arrive with a real consumer. */
-export {};
+export type { IBlendiaCommand } from "./IBlendiaCommand";
+export { parseBlendiaCommand } from "./parseBlendiaCommand";

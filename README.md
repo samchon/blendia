@@ -1,64 +1,19 @@
 # Blendia
 
-Blendia is a workspace for TypeScript tooling that controls an existing Blender
-installation. Blender will continue to own scenes, geometry, rendering, and its
-Python API; Node.js and `ttsc`'s `ttsx` will execute project TypeScript.
+Blendia brings TypeScript scripting to an existing Blender installation. It is designed for people and coding agents working in TypeScript projects, with Blender handling modeling, scene evaluation, and rendering.
 
-This repository currently contains development infrastructure only. Its package
-entrypoints are empty modules: there is no Blender extension, executable CLI,
-session transport, SDK operation, or MCP server yet. Three.js integration is out
-of scope.
+The initial workflow focuses on running a saved project script to create, inspect, and transform Blender objects through a typed SDK. A Blender extension connects the script to the live scene.
 
-## Workspace
+## Status
 
-| Directory | Intended responsibility |
-| --- | --- |
-| `packages/sdk` | Public TypeScript Blender operations |
-| `packages/runtime` | Shared project execution and session/job management |
-| `packages/cli` (`blendia`) | Terminal entrypoint using the shared implementation |
-| `packages/mcp` | AI client tools using the shared implementation |
-| `config` | Shared compiler and lint configuration |
-| `test` | Reserved location for future first-party unit tests |
-| `.agents/skills` | Repository development, evidence, and review instructions |
+Blendia is in early development and is not yet published to npm. The first end-to-end workflow is still being validated; released installation instructions are not available yet.
 
-The four product packages are private until they have a functional, reviewed
-public API. Their source exports support local `ttsx` development, while
-`publishConfig` describes built `lib` exports and `prepack` builds each tarball.
-Release work must deliberately remove `private` and document and verify the real
-API. Empty packages are not a supported SDK.
-Dependencies between packages will be declared when real imports establish the
-build graph. Python extension scaffolding belongs to the first Blender slice.
+A Blender Run TypeScript action and support for unsaved editor scripts are planned follow-up features.
 
-## Development
+## Usage documentation
 
-Use Node.js **22.23.2** and pnpm **10.6.4**, matching the pinned AutoMovie reference.
-The workspace pins the execution Node version with `useNodeVersion`; the root
-`packageManager` pins pnpm. With those tools available:
+The current interfaces and their limitations are documented here while validation continues:
 
-```sh
-pnpm install --frozen-lockfile
-pnpm run config:check
-pnpm run build
-pnpm run evidence
-pnpm run format:check
-```
-
-`pnpm run format` formats maintained TypeScript sources. The ordinary package
-builds use `ttsc` and `@ttsc/lint`; `@ttsc/evidence` supplies declaration lint guards,
-and the separate `@wrtnlabs/evidence` command checks linked evidence contracts.
-The recursive evidence command collects package failures without stopping at the
-first workspace.
-
-No applicable first-party behavior has been implemented, so this frame has no
-unit tests or test execution job. `test/README.md` reserves the location for
-meaningful unit tests introduced with actual first-party logic. The commands
-above check the compiler, formatting, and Evidence configuration; they do not
-establish Blender integration, GUI support, or MCP behavior.
-
-## Planning and conventions
-
-Follow [AGENTS.md](AGENTS.md) and [development conventions](docs/conventions.md).
-The [research tracker](https://github.com/samchon/blendia/issues/1) links the
-architecture research and implementation scopes. Infrastructure work is tracked
-in [tooling #7](https://github.com/samchon/blendia/issues/7) and
-[validation #6](https://github.com/samchon/blendia/issues/6).
+- [CLI](packages/cli/README.md): running saved project TypeScript files.
+- [SDK](packages/sdk/README.md): connecting to Blender and working with scene objects.
+- [Blender extension](blender/extension/README.md): establishing the live Blender connection.
