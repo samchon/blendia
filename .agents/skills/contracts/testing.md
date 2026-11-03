@@ -1,6 +1,6 @@
 # Test contracts
 
-Apply this checklist only to meaningful unit tests permitted by the [canonical user instructions](../../user-instructions.md#meaningful-tests-only). The current frame has no such cases. Answer from actual first-party behavior and assertions when cases are added; a passing run alone does not answer a contract.
+Apply this checklist only to meaningful unit tests permitted by the [testing guide](../development/testing.md). Answer from actual first-party behavior and assertions; a passing run alone does not answer a contract.
 
 ## Behavioral verification
 

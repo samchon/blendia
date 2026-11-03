@@ -13,7 +13,7 @@ Annotate variables, parameters, and function return types. Use inference where s
 
 Separate logical steps with blank lines. Explain a non-obvious step's intent, premise, or reason in a nearby comment. Precede an inner comment with a blank line unless it opens its block. Production arrow functions are permitted; scenario exports follow [testing.md](testing.md).
 
-Shared `config` owns strict compiler settings, correctness lint through `@ttsc/lint`, complementary `@ttsc/evidence` declaration guards, and Prettier formatting. `config/lint.config.ts` is the common lint configuration; a package's `lint.config.ts` re-exports it. Keep formatting diagnostics disabled in compiler lint. Library source exports support local `ttsx`; future published exports and executable bins must use their actual built output.
+Shared `config` owns strict compiler settings, correctness lint through `@ttsc/lint`, complementary `@ttsc/evidence` declaration guards, and Prettier formatting. The common lint implementation belongs directly in `config/lint.config.ts`; a package's `lint.config.ts` re-exports it. Keep formatting diagnostics disabled in compiler lint. The implemented SDK, runtime, and CLI expose built JS and declarations from `lib` through `main`, `types`, and public exports; only the reserved MCP shell retains source exports. Build producer packages in dependency order before unit tests, test type checking, and Evidence checks.
 
 ## Changes and verification
 

@@ -1,0 +1,14 @@
+schema_version = "1.0.0"
+id = "blendia"
+version = "0.1.0"
+name = "Blendia"
+tagline = "Run project TypeScript against a live Blender scene"
+maintainer = "Blendia contributors"
+type = "add-on"
+blender_version_min = "5.2.0"
+license = ["SPDX:MIT"]
+
+[permissions]
+files = "Store a private local session descriptor"
+network = "Connect local TypeScript programs to Blender over loopback"
+clipboard = "Copy the local connection settings on explicit request"

@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   samchon:
+    '@nestia/e2e':
+      specifier: ^12.1.0
+      version: 12.1.0
     '@ttsc/evidence':
       specifier: ^0.35.0
       version: 0.35.0
@@ -87,6 +90,10 @@ importers:
         version: 7.0.2
 
   packages/cli:
+    dependencies:
+      '@blendia/runtime':
+        specifier: workspace:^
+        version: link:../runtime
     devDependencies:
       '@ttsc/evidence':
         specifier: catalog:samchon
@@ -135,6 +142,34 @@ importers:
         version: 7.0.2
 
   packages/runtime:
+    dependencies:
+      '@blendia/sdk':
+        specifier: workspace:^
+        version: link:../sdk
+      ttsc:
+        specifier: catalog:samchon
+        version: 0.35.0(typescript@7.0.2)
+    devDependencies:
+      '@ttsc/evidence':
+        specifier: catalog:samchon
+        version: 0.35.0(@ttsc/lint@0.35.0(ttsc@0.35.0(typescript@7.0.2)))
+      '@ttsc/lint':
+        specifier: catalog:samchon
+        version: 0.35.0(ttsc@0.35.0(typescript@7.0.2))
+      '@types/node':
+        specifier: catalog:utils
+        version: 22.20.5
+      '@wrtnlabs/evidence':
+        specifier: catalog:samchon
+        version: 0.9.0(ttsc@0.35.0(typescript@7.0.2))
+      rimraf:
+        specifier: catalog:utils
+        version: 6.1.3
+      typescript:
+        specifier: catalog:typescript
+        version: 7.0.2
+
+  packages/sdk:
     devDependencies:
       '@ttsc/evidence':
         specifier: catalog:samchon
@@ -158,7 +193,17 @@ importers:
         specifier: catalog:typescript
         version: 7.0.2
 
-  packages/sdk:
+  test:
+    dependencies:
+      '@blendia/sdk':
+        specifier: workspace:^
+        version: link:../packages/sdk
+      '@nestia/e2e':
+        specifier: catalog:samchon
+        version: 12.1.0
+      blendia:
+        specifier: workspace:^
+        version: link:../packages/cli
     devDependencies:
       '@ttsc/evidence':
         specifier: catalog:samchon
@@ -172,9 +217,6 @@ importers:
       '@wrtnlabs/evidence':
         specifier: catalog:samchon
         version: 0.9.0(ttsc@0.35.0(typescript@7.0.2))
-      rimraf:
-        specifier: catalog:utils
-        version: 6.1.3
       ttsc:
         specifier: catalog:samchon
         version: 0.35.0(typescript@7.0.2)
@@ -233,6 +275,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@nestia/e2e@12.1.0':
+    resolution: {integrity: sha512-WjhNi9YGBDPEq5ik8ApgTPxI6RxezzWdvDiBx7hmqnhEKqzdHxGD5T+aleuNkJdvKYPrSdS0crDynLfe+38fMw==}
 
   '@prisma/prisma-schema-wasm@7.10.0-2.d0368e25c88e68caa4d283b5f2d88d1b76ed9356':
     resolution: {integrity: sha512-loEbWBr+xUSqtIYaoJCrIuDeVs/fSY29Efshp+3rrTgQtyEqJ2iGuLTt9XnRZYBUE+eWC8ps0nOblyckgBehJQ==}
@@ -622,6 +667,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@nestia/e2e@12.1.0': {}
 
   '@prisma/prisma-schema-wasm@7.10.0-2.d0368e25c88e68caa4d283b5f2d88d1b76ed9356': {}
 

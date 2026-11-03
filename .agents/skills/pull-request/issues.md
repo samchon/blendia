@@ -1,9 +1,13 @@
 # Issue records
 
-The [canonical user instructions](../../user-instructions.md#research-and-work-are-maintained-in-github-issues) own persistent-record requirements. Apply them to research and implementation through the existing tracker rather than creating a parallel task ledger.
+Treat GitHub issues as the persistent record of research, decisions, open questions, implementation scope, and verification for this repository.
 
-Search both open and closed issues before creating a new issue. Reuse an issue for the same work; create a focused issue only when scope and acceptance criteria are distinct. Link it to the overarching tracker and related dependencies in both directions. Consolidate superseded issues with replacement links and retained sources instead of discarding history.
-
-Keep each actionable issue current with the problem, user requirements, scope, decisions, unresolved questions, acceptance criteria, and verification. Research includes dated source links, examples and reported experience, alternatives and limitations. Label verified facts, external claims, proposals, and measured results so a reader can distinguish their evidentiary strength.
+1. Search and read relevant existing issues, including closed issues, before creating new ones. Extend the existing issue when it represents the same work.
+2. Record substantive research with enough context to stand alone: the problem, user requirements, dated source links, relevant examples or reported experience, limitations, decisions, alternatives, and unresolved questions. Distinguish verified facts, external claims, proposals, and measured results.
+3. Keep an overarching tracking issue and focused actionable issues where the scope warrants them. Link dependencies and related work in both directions. Make each actionable issue's scope and acceptance criteria explicit.
+4. Consolidate overlapping or superseded issues while preserving source references, useful discussion, and links to replacement issues. Do not close unrelated work or discard history.
+5. Keep issue descriptions, checklists, decisions, references, and status current as evidence and implementation change. An issue is complete only when its stated acceptance criteria have been met and the verification evidence is recorded.
+6. Reference the relevant issue IDs in implementation changes and review descriptions. Keep repository research documents linked from their tracking issues; documents supplement the issues rather than replacing them.
+7. If GitHub access is unavailable, preserve ready-to-file issue content locally and report the exact blocker. Publish and reconcile it with the tracker once access is restored.
 
 Before closing, record which acceptance criteria were met, the checked revision and environment, actual commands and results, review outcome, PR link, and any remaining work assigned elsewhere. A merged scaffold does not complete a future Blender implementation issue. If GitHub is unavailable, preserve ready-to-file content locally and report the precise blocker, then reconcile it after access returns.

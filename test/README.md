@@ -1,13 +1,7 @@
 # Unit tests
 
-No unit tests currently exist. The package shells contain no first-party product
-behavior to exercise. This directory reserves the future test location; it is not
-a pnpm workspace and has no runner or CI test job.
+These unit cases verify Blendia's first-party command-line argument grammar and Blender stream framing. They cover script argument boundaries, malformed inputs, fragmented messages, strict UTF-8, and payload byte limits.
 
-Add meaningful unit tests when real first-party logic is implemented, following
-the [testing guidance](../.agents/skills/development/testing.md). Compiler,
-formatter, and Evidence checks validate the current frame without claiming product
-behavior or passing test scenarios.
+They do not require a Blender installation. Execution guidance and the scope of these checks are documented in [UNIT_TESTS.md](UNIT_TESTS.md).
 
-Implementation and verification work is tracked in
-[issue #6](https://github.com/samchon/blendia/issues/6).
+Implementation and verification work is tracked in [issue #6](https://github.com/samchon/blendia/issues/6).

@@ -1,8 +1,8 @@
 # Validation
 
-Reopen the [canonical user instructions](../../user-instructions.md) before each action. Apply their batch-by-cause rule to every verification round.
+Follow [AGENTS.md](../../../AGENTS.md) before each action and apply its batch-by-cause rule to every verification round.
 
-For the current frame, collect build, shared configuration checking, formatting, and Evidence results together. The [project commands](../project/commands.md) describe the actual commands. There are no applicable first-party unit cases yet; do not add smoke tests or synthetic infrastructure to manufacture a passing suite. When real first-party logic and permitted unit tests arrive, include their execution and type checking in the affected round.
+Collect the affected build, configuration, formatting, Evidence, and meaningful first-party unit-test results together. The [project commands](../project/commands.md) describe the shared commands; package manifests determine implemented test commands. When no applicable first-party unit cases exist, say so without manufacturing a passing suite.
 
 For a focused change, choose checks that exercise the changed contracts and actual consumers. Broaden only for a failure, changed dependency, or unresolved concern. Distinguish inspection, local execution, CI execution, and real Blender validation in reports. Record environment-dependent checks that cannot run and their exact blocker.
 

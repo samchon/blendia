@@ -1,9 +1,11 @@
 packages:
   - config
   - packages/*
+  - test
 
 catalogs:
   samchon:
+    "@nestia/e2e": ^12.1.0
     "@wrtnlabs/evidence": ^0.9.0
     ttsc: &ttsc ^0.35.0
     "@ttsc/evidence": *ttsc

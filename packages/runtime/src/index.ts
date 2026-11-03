@@ -1,2 +1,3 @@
-/** Infrastructure entrypoint; the public API will arrive with a real consumer. */
-export {};
+export type { IProjectScriptOptions } from "./IProjectScriptOptions";
+export type { IProjectScriptResult } from "./IProjectScriptResult";
+export { runProjectScript } from "./runProjectScript";
