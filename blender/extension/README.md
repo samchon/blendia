@@ -4,7 +4,9 @@ Connect project TypeScript to an existing Blender 5.2 or newer session. The exte
 
 ## Install and start
 
-Create a ZIP containing this directory's `blender_manifest.toml`, `__init__.py`, `commands.py`, `protocol.py`, `server.py`, and `LICENSE` at the archive root. In Blender, open Edit → Preferences → Get Extensions, open the extension menu, select Install from Disk, and choose that ZIP. Enable Blendia.
+No published extension ZIP is available yet. To prepare one from a source checkout, run `pnpm run extension:license` from the repository root before creating the archive. This generates this directory's ignored `LICENSE` from the canonical repository-root license; do not commit the generated copy. See the [packaging notes](../../docs/conventions.md#compiler-exports-and-commands).
+
+Create a ZIP containing this directory's `blender_manifest.toml`, `__init__.py`, `commands.py`, `protocol.py`, `server.py`, and the generated `LICENSE` at the archive root. In Blender, open Edit → Preferences → Get Extensions, open the extension menu, select Install from Disk, and choose that ZIP. Enable Blendia.
 
 In the 3D Viewport, press N and open the Blendia tab. Select Start Blendia. The panel shows the local port and whether a TypeScript client owns the connection. Starting the extension does not edit the scene.
 

@@ -3,13 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Typed async connection to a live Blender session for project TypeScript scripts.",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "src/index.ts",
   "exports": {
-    ".": {
-      "types": "./lib/index.d.ts",
-      "default": "./lib/index.js"
-    },
+    ".": "./src/index.ts",
     "./package.json": "./package.json"
   },
   "scripts": {

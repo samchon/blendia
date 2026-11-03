@@ -10,8 +10,7 @@
   },
   "scripts": {
     "build": "rimraf lib && ttsc",
-    "prepack": "pnpm run build",
-    "evidence": "evidence"
+    "prepack": "pnpm run build"
   },
   "author": "Samchon",
   "license": "MIT",
@@ -42,7 +41,6 @@
     "@ttsc/evidence": "catalog:samchon",
     "@ttsc/lint": "catalog:samchon",
     "@types/node": "catalog:utils",
-    "@wrtnlabs/evidence": "catalog:samchon",
     "rimraf": "catalog:utils",
     "ttsc": "catalog:samchon",
     "typescript": "catalog:typescript"

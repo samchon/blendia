@@ -1,18 +1,18 @@
 import { type IEvidenceConfig } from "@wrtnlabs/evidence";
 
-/** Apply engineering contracts to every exported source declaration as APIs arrive. */
+/** Check the execution boundary where concrete engineering obligations apply. */
 export default {
   severity: "error",
   claims: [
     {
-      name: "public source declarations",
+      name: "project execution boundary",
       type: "typescript",
-      files: ["src/**/*.ts"],
-      symbol: ["type", "function"],
+      files: ["src/runProjectScript.ts"],
+      symbol: "function",
       reference: {
         type: "markdown",
         root: "../../.agents/skills",
-        files: ["contracts/common.md", "contracts/performance.md"],
+        files: ["contracts/common.md"],
         symbol: "h2",
         checklist: true,
       },

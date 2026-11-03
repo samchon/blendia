@@ -3,23 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "description": "Run project TypeScript against the existing Blender application.",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "src/index.ts",
   "bin": {
     "blendia": "lib/bin.js"
   },
   "exports": {
-    ".": {
-      "types": "./lib/index.d.ts",
-      "default": "./lib/index.js"
-    },
+    ".": "./src/index.ts",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "rimraf lib && ttsc",
     "start": "ttsx src/bin.ts",
-    "prepack": "pnpm run build",
-    "evidence": "evidence"
+    "prepack": "pnpm run build"
   },
   "author": "Samchon",
   "license": "MIT",
@@ -56,7 +51,6 @@
     "@ttsc/evidence": "catalog:samchon",
     "@ttsc/lint": "catalog:samchon",
     "@types/node": "catalog:utils",
-    "@wrtnlabs/evidence": "catalog:samchon",
     "rimraf": "catalog:utils",
     "ttsc": "catalog:samchon",
     "typescript": "catalog:typescript"

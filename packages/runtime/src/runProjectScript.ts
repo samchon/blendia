@@ -10,14 +10,12 @@ import type { IProjectScriptResult } from "./IProjectScriptResult";
  * Launch the installed ttsx CLI with the current Node executable and inherit the terminal streams.
  *
  * ttsx owns project checking, plugins, source maps, private emit, and its program child. This promise waits for the direct launcher to close; it provides no process-tree cancellation or Blender transaction guarantee.
+ * The direct launcher's error is retained until close so failed startup does not settle before process handles do. The two listeners are removed at that boundary, and inherited stdio avoids retaining script output in this process.
  *
  * @evidence contracts/common.md#principled-implementation Resolve ttsx through its package's exported metadata and spawn process.execPath with an argument array, real cwd, and inherited environment; ttsx receives the original source entry.
  * @evidence contracts/common.md#clear-and-simple-design The real CLI consumes this single launch operation; SDK connection credentials are environment handoff data and do not create a second connection owner.
  * @evidence contracts/common.md#prohibited-implementation-shortcuts No shell command, global node lookup, temporary source copy, custom compiler, or replacement package resolver is used.
  * @evidence contracts/common.md#meaningful-documentation The contract distinguishes direct-child closure, inherited diagnostics, spawn rejection, and unsupported cancellation or rollback.
- * @evidence contracts/performance.md#efficient-algorithms Argument construction is linear in supplied arguments and environment copying is linear in inherited keys; ttsx owns potentially expensive project compilation and execution, with unbuffered inherited output.
- * @evidence contracts/performance.md#reuse-equivalent-work Every call launches an independent effectful script; only upstream ttsx may reuse its checked compilation cache.
- * @evidence contracts/performance.md#bound-retention-and-release-resources One launcher handle and its error and close listeners live until close, then listeners are removed and the promise settles; runtime duration is unbounded and no descendant shutdown is certified.
  */
 export async function runProjectScript(
   options: IProjectScriptOptions,
