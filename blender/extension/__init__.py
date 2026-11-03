@@ -102,21 +102,30 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.WindowManager.blendia_macros = bpy.props.PointerProperty(type=BLENDIA_PG_macro_settings)
     launcher.enabled = True
+    bridge.enabled = True
     register_handlers()
     atexit.register(bridge.close_transport)
     atexit.unregister(launcher.abandon_at_exit)
     atexit.register(launcher.abandon_at_exit)
+    atexit.unregister(bridge.artifacts.cleanup_files)
+    atexit.register(bridge.artifacts.cleanup_files)
 
 
 def unregister():
     """Revoke the session before removing classes and lifecycle callbacks."""
     launcher.enabled = False
-    bridge.stop()
-    atexit.unregister(bridge.close_transport)
-    # A live CLI keeps its drain/reap timer; disabling is not process cancellation.
-    if not launcher.running:
-        atexit.unregister(launcher.abandon_at_exit)
-    unregister_handlers()
-    del bpy.types.WindowManager.blendia_macros
-    for cls in reversed(CLASSES):
-        bpy.utils.unregister_class(cls)
+    bridge.enabled = False
+    try:
+        bridge.stop()
+    finally:
+        atexit.unregister(bridge.close_transport)
+        if not bridge.renders.busy:
+            atexit.unregister(bridge.artifacts.cleanup_files)
+
+        # Live launch/render owners retain their own drain and cleanup callbacks.
+        if not launcher.running:
+            atexit.unregister(launcher.abandon_at_exit)
+        unregister_handlers()
+        del bpy.types.WindowManager.blendia_macros
+        for cls in reversed(CLASSES):
+            bpy.utils.unregister_class(cls)

@@ -2,7 +2,7 @@
 
 Blendia brings TypeScript scripting to an existing Blender installation. It is designed for people and coding agents working in TypeScript projects, with Blender handling modeling, scene evaluation, and rendering.
 
-Run a saved project script to create, inspect, and transform Blender objects through a typed SDK. The Blendia extension connects the script to the live scene.
+Run a project script to create and inspect Blender scenes through a typed SDK, including meshes, materials, cameras, lights, native PNG renders, and `.blend` copies. The Blendia extension connects the script to the live scene.
 
 ## Status
 
@@ -34,4 +34,5 @@ The current interfaces and their limitations are documented here:
 
 - [CLI](packages/cli/README.md): running saved project TypeScript files.
 - [SDK](packages/sdk/README.md): connecting to Blender and working with scene objects.
+- [Scene authoring and outputs](docs/design/scene-render-save.md): creating a scene, rendering a PNG, and saving a `.blend` copy with explicit output ownership.
 - [Blender extension](blender/extension/README.md): establishing the live Blender connection.

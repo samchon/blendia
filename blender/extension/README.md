@@ -1,6 +1,6 @@
 # Blendia Blender extension
 
-Connect project TypeScript to an existing Blender 5.2 or newer session. The extension creates a local authenticated connection and performs scene edits on Blender's main thread. It supports cube creation, object readback, and local transforms through the Blendia SDK.
+Connect project TypeScript to an existing Blender 5.2 or newer session. The extension creates a local authenticated connection and performs scene edits on Blender's main thread. The Blendia SDK supports bounded scene inspection, cube and mesh creation, opaque Principled materials, cameras, area lights, local transforms, native PNG rendering and explicit PNG/.blend destinations.
 
 ## Install and start
 
@@ -26,7 +26,11 @@ Switch to Object Mode and enable Global Undo before creating or transforming obj
 
 The bridge accepts one authenticated TypeScript client at a time. Close that client to release ownership. Renaming an object preserves its handle. Loading a file or restoring undo/redo history invalidates old handles; reconnect and obtain current handles before continuing. Deleting an object makes its handle unavailable.
 
-Select Stop Blendia to revoke the token, close connections, and remove this session's descriptor. Disabling the extension also stops it. A process crash can leave a stale descriptor; a descriptor file alone does not prove a session is running.
+Mesh creation accepts up to 8192 vertices, 8192 faces and 32768 face corners, subject to the separate message-size limit. Invalid topology is rejected rather than silently repaired. Whole-mesh material assignment requires local editable single-user mesh data; shared or linked data is refused. Camera creation changes the active scene camera only with explicit `setActive: true`. See the [SDK guide](../../packages/sdk/README.md) for typed operations.
+
+Native rendering uses the current scene camera, frame and engine. Requested resolution and PNG settings remain in the scene; only the owned temporary output filepath is conditionally restored. While rendering/finalizing, only render status, existing artifact reads/releases and disconnect remain available. Save operations require an explicit absolute destination and refuse overwriting by default. Filesystem publication and native save handlers are outside scene undo/rollback.
+
+Select Stop Blendia to revoke the token, close connections, and remove this session's descriptor. Disabling the extension also revokes bridge access. Neither action cancels a native render; its owned callbacks continue observing completion and temporary-path cleanup. Starting another session waits for that retirement boundary. A process crash can leave a stale descriptor or private output; a descriptor file alone does not prove a session is running.
 
 ## Run TypeScript from Blender
 

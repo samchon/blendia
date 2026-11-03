@@ -3,6 +3,7 @@
 import bpy
 
 from .protocol import BridgeError, require_keys, require_number, require_vector
+from .scene_data import SCENE_METHODS, SceneData
 
 
 class SceneCommands:
@@ -14,10 +15,15 @@ class SceneCommands:
         self.result = None
         self.error = None
         self.effects = "none"
+        self.scene_data = SceneData(self)
 
     def execute(self, method, params):
         """Validate before mutation and report possible effects after partial failure."""
-        if method == "cube.create":
+        if method == "scene.inspect":
+            return self.scene_data.inspect(params, bpy.context.scene)
+        if method in SCENE_METHODS:
+            params = self.scene_data.validate(method, params, bpy.context.scene)
+        elif method == "cube.create":
             require_keys(params, (), ("name", "size"))
             size = require_number(params.get("size", 2), "size")
             if size <= 0 or size > 1e20:
@@ -69,8 +75,10 @@ class SceneCommands:
     def mutate(self):
         """Called only by the registered Blender operator on the main thread."""
         method, params = self.pending
-        changed = False
         try:
+            if method in SCENE_METHODS:
+                self.result = self.scene_data.apply(method, params, bpy.context.scene, self.mark_changed)
+                return
             if method == "cube.create":
                 half = params.get("size", 2) / 2
                 vertices = [(x * half, y * half, z * half) for x, y, z in (
@@ -81,16 +89,14 @@ class SceneCommands:
                          (2, 3, 7, 6), (0, 1, 3, 2), (4, 6, 7, 5)]
                 name = params.get("name", "Cube")
                 mesh = bpy.data.meshes.new(name)
-                changed = True
-                self.effects = "possible"
+                self.mark_changed()
                 mesh.from_pydata(vertices, [], faces)
                 mesh.update()
                 obj = bpy.data.objects.new(name, mesh)
                 bpy.context.scene.collection.objects.link(obj)
             else:
                 obj = self.resolve(params["object"])
-                changed = True
-                self.effects = "possible"
+                self.mark_changed()
                 if "location" in params:
                     obj.location = params["location"]
                 if "rotationEuler" in params:
@@ -100,8 +106,12 @@ class SceneCommands:
                     obj.scale = params["scale"]
             self.result = self.snapshot(obj)
         except Exception as error:
-            effects = "possible" if changed else "none"
-            self.error = BridgeError("EXECUTION_ERROR", str(error), effects)
+            code = error.code if isinstance(error, BridgeError) else "EXECUTION_ERROR"
+            self.error = BridgeError(code, str(error), self.effects)
+
+    def mark_changed(self):
+        """Preserve possible effects even if later cleanup or snapshot creation fails."""
+        self.effects = "possible"
 
     def resolve(self, handle):
         """Reject stale generations and resolve fresh RNA wrappers by session UID."""
