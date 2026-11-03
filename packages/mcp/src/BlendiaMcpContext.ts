@@ -13,6 +13,7 @@ import {
 } from "@blendia/sdk";
 
 import { BlendiaMcpError } from "./BlendiaMcpError";
+import { BlendiaMcpImageDelivery } from "./BlendiaMcpImageDelivery";
 import { BlendiaMcpImages } from "./BlendiaMcpImages";
 import type { IBlendiaMcpHeadlessConfiguration } from "./IBlendiaMcpHeadlessConfiguration";
 import type { IBlendiaMcpHeadlessOptions } from "./IBlendiaMcpHeadlessOptions";
@@ -32,7 +33,9 @@ import type { IBlendiaMcpScriptOptions } from "./IBlendiaMcpScriptOptions";
  */
 export class BlendiaMcpContext {
   /** Bounded owned-image observations shared with controller and resource reads. */
-  public readonly images: BlendiaMcpImages = new BlendiaMcpImages();
+  public readonly images: BlendiaMcpImages;
+  /** Private one-time media delivery shared only with the server's response adapter. */
+  public readonly delivery: BlendiaMcpImageDelivery;
   /** Immutable private connection snapshot, never returned as metadata. */
   private readonly connection: IBlenderConnectionOptions;
   /** Known token is used only for output suppression and diagnostic redaction. */
@@ -49,7 +52,12 @@ export class BlendiaMcpContext {
   private active: number = 0;
 
   /** Snapshot private options once without publishing environment or configuration values. */
-  public constructor(options: IBlendiaMcpOptions = {}) {
+  public constructor(
+    options: IBlendiaMcpOptions,
+    delivery: BlendiaMcpImageDelivery,
+  ) {
+    this.delivery = delivery;
+    this.images = new BlendiaMcpImages(delivery);
     this.token = options.connection?.token ?? process.env.BLENDIA_TOKEN ?? "";
     const port: number | undefined =
       options.connection?.port ??
@@ -182,7 +190,7 @@ export class BlendiaMcpContext {
     };
   }
 
-  /** Preserve typed errors and effects while refusing to publish known credentials, raw causes, or request bodies. */
+  /** Return all three envelope fields: success has a null error; failure has a null result and sanitized effect information. */
   public async execute<T>(
     operation: () => T | Promise<T>,
     mutation: boolean = false,
@@ -190,6 +198,7 @@ export class BlendiaMcpContext {
     if (this.closing)
       return {
         ok: false,
+        result: null,
         error: {
           code: "CLOSED",
           message: "The MCP service lifetime has ended.",
@@ -205,7 +214,7 @@ export class BlendiaMcpContext {
           "The result contained private credential metadata and was suppressed.",
           mutation ? "possible" : "none",
         );
-      return { ok: true, result };
+      return { ok: true, result, error: null };
     } catch (error) {
       if (error instanceof BlenderError || error instanceof BlendiaMcpError) {
         const code: string = /^[A-Z][A-Z0-9_]{0,63}$/.test(error.code)
@@ -213,6 +222,7 @@ export class BlendiaMcpContext {
           : "EXECUTION_ERROR";
         return {
           ok: false,
+          result: null,
           error: {
             code: redactKnownToken(code, this.token),
             message: redactKnownToken(error.message, this.token).slice(0, 1024),
@@ -222,6 +232,7 @@ export class BlendiaMcpContext {
       }
       return {
         ok: false,
+        result: null,
         error: {
           code: redactKnownToken("EXECUTION_ERROR", this.token),
           message: redactKnownToken(

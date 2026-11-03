@@ -1,6 +1,6 @@
 import type { IBlenderArtifact } from "@blendia/sdk";
 
-/** Declared owned PNG result; transport adds native image content without deleting these fields. */
+/** Metadata-only owned PNG result; raw bytes belong exclusively to private one-time delivery. */
 export interface IBlendiaMcpImageResult {
   /** Typed adapter discriminator. */
   kind: "image";
@@ -11,6 +11,6 @@ export interface IBlendiaMcpImageResult {
   /** Native image content type. */
   mimeType: "image/png";
 
-  /** At most one MiB of raw PNG bytes encoded canonically; retained in structuredContent. */
-  dataBase64: string;
+  /** Opaque one-use ticket correlated to this tool response; not a durable resource address. */
+  deliveryId: string;
 }

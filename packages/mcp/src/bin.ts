@@ -3,7 +3,6 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import process from "node:process";
 
-import { BlendiaMcpTransport } from "./BlendiaMcpTransport";
 import type { IBlendiaMcpHeadlessConfiguration } from "./IBlendiaMcpHeadlessConfiguration";
 import type { IBlendiaMcpOptions } from "./IBlendiaMcpOptions";
 import { createBlendiaMcpServer } from "./createBlendiaMcpServer";
@@ -27,10 +26,14 @@ async function main(): Promise<void> {
     };
 
   const options: IBlendiaMcpOptions = { headless };
-  const server: McpServer = createBlendiaMcpServer(options);
-  server.server.onerror = (): void => {
-    process.stderr.write("Blendia MCP protocol error.\n");
-  };
+
+  // The public SDK transport owns framing and the four-MiB inbound bound.
+  const server: McpServer = await createBlendiaMcpServer(
+    new StdioServerTransport(process.stdin, process.stdout, {
+      maxBufferSize: 4 * 1024 * 1024,
+    }),
+    options,
+  );
 
   const close: () => void = (): void => {
     void server.close().catch((): void => {
@@ -41,15 +44,6 @@ async function main(): Promise<void> {
   process.once("SIGINT", close);
   process.once("SIGTERM", close);
   process.stdin.once("end", close);
-
-  // Reject oversized inbound frames without creating a second protocol parser.
-  await server.connect(
-    new BlendiaMcpTransport(
-      new StdioServerTransport(process.stdin, process.stdout, {
-        maxBufferSize: 4 * 1024 * 1024,
-      }),
-    ),
-  );
 }
 
 /** Read a private lifecycle deadline in the runtime's supported milliseconds. */

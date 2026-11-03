@@ -232,12 +232,14 @@ export class BlendiaMcpController {
     );
   }
 
-  /** Read an observed live owned PNG with a one-MiB native-image cap; no arbitrary file or expired-headless fallback. */
+  /** Return observed PNG metadata and a one-use delivery ticket; native image bytes are delivered privately once, up to one MiB. */
   public async readImage(
     artifact: IBlenderArtifactHandle,
   ): Promise<IBlendiaMcpResult<IBlendiaMcpImageResult>> {
-    return this.context.execute((): Promise<IBlendiaMcpImageResult> =>
-      this.context.images.read(this.context.current(), artifact),
+    return this.context.execute(async (): Promise<IBlendiaMcpImageResult> =>
+      this.context.delivery.stage(
+        await this.context.images.read(this.context.current(), artifact),
+      ),
     );
   }
 

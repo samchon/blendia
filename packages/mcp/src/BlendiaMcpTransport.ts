@@ -2,71 +2,86 @@ import type {
   Transport,
   TransportSendOptions,
 } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  JSONRPCMessage,
+  MessageExtraInfo,
+} from "@modelcontextprotocol/sdk/types.js";
 
+import type { BlendiaMcpImageDelivery } from "./BlendiaMcpImageDelivery";
 import { addMcpNativeImage } from "./addMcpNativeImage";
 
 /**
- * Forward the public transport contract with one outbound image conversion.
+ * Preserve public transport behavior while delivering private PNG bytes once.
  *
- * The SDK still owns callback installation, initialization, and framing. The
- * wrapped transport owns its streams and closes them through its public API.
+ * Only the actual readImage request callback acquires an async correlation
+ * scope. typia still validates and dispatches it; the original response ID and
+ * metadata ticket must match before send can consume private native content.
  *
- * @evidence contracts/common.md#principled-implementation All lifecycle callbacks and protocol-version updates delegate to the supplied public Transport; only outbound validated image envelopes gain a content block.
- * @evidence contracts/common.md#clear-and-simple-design Composition at Transport.send leaves the typia tool registry untouched and works with the actual SDK stdio transport.
- * @evidence contracts/common.md#prohibited-implementation-shortcuts The adapter accesses no private SDK state and does not replace globals or register duplicate tool handlers.
- * @evidence contracts/common.md#meaningful-documentation The class documents stream ownership and the single presentation change while its accessors preserve SDK callback ownership.
+ * @evidence contracts/common.md#principled-implementation Public callback composition establishes an AsyncLocalStorage scope only for readImage calls; outbound native content requires the same response identity and one-time metadata ticket, while lifecycle and framing remain delegated.
+ * @evidence contracts/common.md#clear-and-simple-design This adapter bridges private delivery ownership to the actual SDK transport without changing typia's registry or placing raw image bytes in a declared JSON result.
+ * @evidence contracts/common.md#prohibited-implementation-shortcuts No private handler, runtime typia transform, global replacement, extra schema registry, or client-specific fallback is used.
+ * @evidence contracts/common.md#meaningful-documentation The class identifies original-request correlation, native-only bytes, and the delegated lifecycle; callbacks remain public SDK-owned integration points.
  */
 export class BlendiaMcpTransport implements Transport {
-  /** Retain the supplied stream owner without starting or replacing it. */
-  public constructor(private readonly transport: Transport) {}
+  /** Public SDK close callback; the underlying transport retains its own streams. */
+  public onclose: Transport["onclose"] = undefined;
 
-  /** Start the wrapped stream after the SDK installs callbacks. */
+  /** Public out-of-band error callback; no protocol payload is logged here. */
+  public onerror: Transport["onerror"] = undefined;
+
+  /** Public SDK message callback; wrapper dispatch remains the SDK's responsibility. */
+  public onmessage: Transport["onmessage"] = undefined;
+
+  /** Stream owner supplied by the actual server consumer. */
+  private readonly transport: Transport;
+
+  /** Factory-owned bounded private image deliveries. */
+  private readonly delivery: BlendiaMcpImageDelivery;
+
+  /** Install public callback forwarding before the SDK starts the transport. */
+  public constructor(transport: Transport, delivery: BlendiaMcpImageDelivery) {
+    this.transport = transport;
+    this.delivery = delivery;
+    transport.onclose = (): void => {
+      this.delivery.close();
+      this.onclose?.();
+    };
+    transport.onerror = (error: Error): void => this.onerror?.(error);
+    transport.onmessage = <T extends JSONRPCMessage>(
+      message: T,
+      extra?: MessageExtraInfo,
+    ): void => {
+      const forward: () => void = (): void => this.onmessage?.(message, extra);
+      if (
+        "id" in message &&
+        "method" in message &&
+        message.method === "tools/call" &&
+        message.params?.name === "readImage"
+      )
+        this.delivery.runRequest(message.id, forward);
+      else forward();
+    };
+  }
+
+  /** Start only after the SDK installs callbacks on this wrapper. */
   public start(): Promise<void> {
     return this.transport.start();
   }
 
-  /** Preserve routing options and add native content without changing schemas. */
+  /** Preserve routing and consume matching private bytes before the actual send. */
   public send(
     message: JSONRPCMessage,
     options?: TransportSendOptions,
   ): Promise<void> {
-    return this.transport.send(addMcpNativeImage(message), options);
+    return this.transport.send(
+      addMcpNativeImage(message, this.delivery),
+      options,
+    );
   }
 
-  /** Release the wrapped transport's own resources. */
+  /** Close the real stream owner; its callback retires pending image copies. */
   public close(): Promise<void> {
     return this.transport.close();
-  }
-
-  /** Delegate close notification registration to the stream owner. */
-  public get onclose(): Transport["onclose"] {
-    return this.transport.onclose;
-  }
-
-  /** Install the SDK close callback on the actual stream owner. */
-  public set onclose(callback: Transport["onclose"]) {
-    this.transport.onclose = callback;
-  }
-
-  /** Delegate out-of-band error notification without logging payloads. */
-  public get onerror(): Transport["onerror"] {
-    return this.transport.onerror;
-  }
-
-  /** Install the SDK error callback without capturing protocol payloads. */
-  public set onerror(callback: Transport["onerror"]) {
-    this.transport.onerror = callback;
-  }
-
-  /** Allow the SDK to own inbound request callbacks on the wrapped transport. */
-  public get onmessage(): Transport["onmessage"] {
-    return this.transport.onmessage;
-  }
-
-  /** Install the SDK request callback without another inbound dispatcher. */
-  public set onmessage(callback: Transport["onmessage"]) {
-    this.transport.onmessage = callback;
   }
 
   /** Preserve an optional transport session identity. */
@@ -74,7 +89,7 @@ export class BlendiaMcpTransport implements Transport {
     return this.transport.sessionId;
   }
 
-  /** Forward optional protocol-version negotiation when the transport supports it. */
+  /** Delegate optional protocol-version negotiation to the stream owner. */
   public setProtocolVersion(version: string): void {
     this.transport.setProtocolVersion?.(version);
   }

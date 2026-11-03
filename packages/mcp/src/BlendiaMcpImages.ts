@@ -6,21 +6,30 @@ import type {
 } from "@blendia/sdk";
 
 import { BlendiaMcpError } from "./BlendiaMcpError";
-import type { IBlendiaMcpImageResult } from "./IBlendiaMcpImageResult";
+import { BlendiaMcpImageDelivery } from "./BlendiaMcpImageDelivery";
+import type { IBlendiaMcpImagePayload } from "./IBlendiaMcpImagePayload";
 import { MAX_MCP_IMAGE_BYTES } from "./MAX_MCP_IMAGE_BYTES";
 
 /** Own bounded observations of live bridge PNGs without adopting foreign paths or manufacturing durable files.
  *
  * @evidence contracts/common.md#principled-implementation Only succeeded render metadata is observed; reads require the same session and nonexpired observed artifact, exact total bytes, contiguous offsets, and matching image dimensions.
- * @evidence contracts/common.md#clear-and-simple-design The real controller and resource adapter share this owned-ID path; SDK reads provide bytes and the MCP transport adds native image content from the declared result.
+ * @evidence contracts/common.md#clear-and-simple-design The real controller and resource adapter share this owned-ID reader; validated raw bytes remain private while the tool returns only metadata and a one-time delivery ticket.
  * @evidence contracts/common.md#prohibited-implementation-shortcuts No filesystem path fallback, implicit foreign-artifact adoption, expired headless URI, or image generated from metadata substitutes for owned PNG bytes.
  * @evidence contracts/common.md#meaningful-documentation One MiB is a distinct MCP admission bound, observed metadata is bounded to four artifacts, and disconnect does not itself delete native artifacts.
  * @evidence contracts/performance.md#efficient-algorithms Assembly visits at most one MiB in sequential 192 KiB SDK windows; no full scene scan or arbitrary file read is required.
- * @evidence contracts/performance.md#bound-retention-and-release-resources The map retains at most four small metadata records until expiry or explicit release; temporary decoded chunks and one final PNG buffer belong to the read invocation, while the returned base64 belongs to its caller.
+ * @evidence contracts/performance.md#bound-retention-and-release-resources The map retains at most four small metadata records; temporary chunks belong to the invocation, and tool payloads enter a separate four-MiB one-time queue whose release, session replacement, and close follow these observations.
  */
 export class BlendiaMcpImages {
   /** Detached observed metadata; underlying bytes remain bridge-owned. */
   private readonly artifacts: Map<string, IBlenderArtifact> = new Map();
+
+  /** Private transport media is retired together with its observed artifact identity. */
+  private readonly delivery: BlendiaMcpImageDelivery;
+
+  /** Share one factory-owned delivery lifetime without exposing its bytes as a model result. */
+  public constructor(delivery: BlendiaMcpImageDelivery) {
+    this.delivery = delivery;
+  }
 
   /** Register only actual successful readback; the caller cannot populate this map through readImage input. */
   public observe(artifact: IBlenderArtifact): void {
@@ -37,10 +46,12 @@ export class BlendiaMcpImages {
   /** Remove only the released identity's observation. */
   public forget(artifact: IBlenderArtifactHandle): void {
     this.artifacts.delete(this.key(artifact));
+    this.delivery.forget(artifact);
   }
 
   /** Session replacement prevents cached artifacts from being silently retargeted. */
   public retainSession(sessionId: string): void {
+    this.delivery.retainSession(sessionId);
     for (const [key, artifact] of this.artifacts)
       if (artifact.handle.sessionId !== sessionId) this.artifacts.delete(key);
     this.prune();
@@ -49,13 +60,14 @@ export class BlendiaMcpImages {
   /** Retire metadata when the controller lifetime ends, without deleting published user files. */
   public clear(): void {
     this.artifacts.clear();
+    this.delivery.close();
   }
 
-  /** Fetch only a previously observed live PNG and assemble a bounded declared image result. */
+  /** Fetch a previously observed live PNG; callers keep this raw payload outside tool schemas. */
   public async read(
     client: BlenderClient,
     handle: IBlenderArtifactHandle,
-  ): Promise<IBlendiaMcpImageResult> {
+  ): Promise<IBlendiaMcpImagePayload> {
     this.prune();
     const artifact: IBlenderArtifact | undefined = this.artifacts.get(
       this.key(handle),
@@ -85,7 +97,6 @@ export class BlendiaMcpImages {
     const bytes: Buffer = Buffer.concat(chunks, artifact.bytes);
     this.validatePng(bytes, artifact);
     return {
-      kind: "image",
       artifact: { ...artifact, handle: { ...artifact.handle } },
       mimeType: "image/png",
       dataBase64: bytes.toString("base64"),

@@ -36,15 +36,15 @@ The first source launch may prepare the compiler's native plugins before the MCP
 
 ## Use Blender tools
 
-Call `connect` explicitly to open the configured bridge, and inspect `getSession` before retaining scene identities. Scene tools require an existing connection and never reconnect implicitly. Tools return either `{ "ok": true, "result": ... }` or `{ "ok": false, "error": { "code": ..., "message": ..., "effects": ... } }`; an unknown outcome must be reconciled rather than blindly replayed.
+Call `connect` explicitly to open the configured bridge, and inspect `getSession` before retaining scene identities. Scene tools require an existing connection and never reconnect implicitly. Every tool declares one object schema with `ok`, `result`, and `error`: success has `ok: true` and `error: null`; failure has `ok: false`, `result: null`, and a sanitized error containing `code`, `message`, and `effects`. Successful void operations also use a null result. An unknown outcome must be reconciled rather than blindly replayed.
 
 Scene, mesh, transform, material, camera, lighting, render, artifact, and copy-save tools delegate to the SDK. `discoverSessions` and `doctor` expose bounded discovery and project diagnostics. `startScript`, `getScript`, `readScriptLogs`, and `closeScript` expose captured project jobs. `closeScript` releases a terminal record; it does not stop a running script or cancel a native render.
 
 `startScript` transfers the writer lease before launching the script's SDK connection. After completion, reconnect and inspect the live scene. A render needs a caller-retained `renderId`; use `getRender` to reconcile a lost response. Only successful renders observed by this MCP server make their PNGs available to `readImage` and the image resource.
 
-`readImage` accepts an artifact handle and emits native PNG content alongside its declared structured result. The base64 field remains in `structuredContent` to satisfy the generated output schema, so clients receive two representations of the same bounded image. Native images are limited to 1 MiB of raw PNG bytes; larger SDK artifacts remain available through chunked artifact reads or explicit export.
+`readImage` accepts an artifact handle and emits native PNG content alongside a metadata-only structured result. Its declared output contains `kind`, `artifact`, `mimeType`, and an opaque one-time `deliveryId`; it contains no image base64. The server privately correlates bytes with the original request and consumes them once into native image content. Each image is limited to 1 MiB of raw PNG bytes. Pending delivery retains at most four images and 4 MiB of raw-equivalent bytes for at most 30 seconds, bounded further by artifact expiry; full admission returns `BUSY` without evicting another pending response. Consumption, expiry, artifact release, session replacement, and server close release pending copies. Larger SDK artifacts remain available through explicit artifact export or chunk reads; those are separate from native image delivery.
 
-The resource template is `blendia://artifact/{sessionId}/{artifactId}`. It uses the same observed-handle reader and returns a PNG blob, never arbitrary filesystem bytes. Artifacts expire after the bridge's 600-second retention window or explicit release, and the MCP server retains at most four metadata observations. Disconnecting does not turn an artifact into a durable file. Save a copy explicitly when it must outlive its owning session.
+The resource template is `blendia://artifact/{sessionId}/{artifactId}`. It uses the same private observed-handle reader and returns only a standard PNG resource blob, without staging a tool delivery or reading arbitrary filesystem bytes. Artifacts expire after the bridge's 600-second retention window or explicit release, and the MCP server retains at most four metadata observations. Disconnecting does not turn an artifact into a durable file. Save a copy explicitly when it must outlive its owning session.
 
 ## Run an isolated project
 
@@ -55,11 +55,26 @@ Headless runs own a fresh Blender process and clean up their private session. Th
 ## Embed the server
 
 ```typescript
-import { BlendiaMcpTransport, createBlendiaMcpServer } from "@blendia/mcp";
+import { createBlendiaMcpServer } from "@blendia/mcp";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import process from "node:process";
 
-const server = createBlendiaMcpServer();
-await server.connect(new BlendiaMcpTransport(new StdioServerTransport()));
+async function main(): Promise<void> {
+  const server: McpServer = await createBlendiaMcpServer(
+    new StdioServerTransport(),
+  );
+  process.once("SIGINT", (): void => {
+    void server.close().catch((): void => {
+      process.stderr.write("MCP cleanup failed.\n");
+    });
+  });
+}
+
+void main().catch((): void => {
+  process.stderr.write("MCP startup failed.\n");
+  process.exitCode = 1;
+});
 ```
 
-The factory uses `typia.llm.application` and `@typia/mcp` for generated schemas, validation, and dispatch. The public transport adapter only adds native image presentation, and public resource registration owns the separate resource route. The stdio command bounds incoming JSON-RPC buffers to 4 MiB; embedding applications own their chosen transport's input policy.
+The asynchronous factory uses `typia.llm.application` and `@typia/mcp` for generated schemas, validation, and dispatch, wraps the supplied public transport with private native-image delivery, and connects it before returning the SDK server. Public resource registration owns the separate resource route. Do not connect the returned server a second time. The stdio command bounds incoming JSON-RPC buffers to 4 MiB; embedding applications own their chosen transport's input policy.

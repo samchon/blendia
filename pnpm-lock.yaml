@@ -229,6 +229,9 @@ importers:
       blendia:
         specifier: workspace:^
         version: link:../packages/cli
+      typia:
+        specifier: catalog:samchon
+        version: 15.2.2(ttsc@0.35.0(typescript@7.0.2))
     devDependencies:
       '@ttsc/evidence':
         specifier: catalog:samchon

@@ -20,7 +20,11 @@ export default {
     {
       name: "private lifetime ownership and bounded owned image assembly",
       type: "typescript",
-      files: ["src/BlendiaMcpContext.ts", "src/BlendiaMcpImages.ts"],
+      files: [
+        "src/BlendiaMcpContext.ts",
+        "src/BlendiaMcpImages.ts",
+        "src/BlendiaMcpImageDelivery.ts",
+      ],
       symbol: "type",
       reference: {
         type: "markdown",
@@ -31,10 +35,23 @@ export default {
       },
     },
     {
-      name: "typed MCP composition and public transport delegation",
+      name: "typed MCP composition",
       type: "typescript",
-      files: ["src/createBlendiaMcpServer.ts", "src/BlendiaMcpTransport.ts"],
-      symbol: ["function", "type"],
+      files: ["src/createBlendiaMcpServer.ts"],
+      symbol: "function",
+      reference: {
+        type: "markdown",
+        root: "../../.agents/skills",
+        files: ["contracts/common.md"],
+        symbol: "h2",
+        checklist: true,
+      },
+    },
+    {
+      name: "public transport ownership",
+      type: "typescript",
+      files: ["src/BlendiaMcpTransport.ts"],
+      symbol: "type",
       reference: {
         type: "markdown",
         root: "../../.agents/skills",

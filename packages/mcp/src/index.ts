@@ -1,4 +1,3 @@
-export { BlendiaMcpTransport } from "./BlendiaMcpTransport";
 export { createBlendiaMcpServer } from "./createBlendiaMcpServer";
 export type { IBlendiaMcpErrorResult } from "./IBlendiaMcpErrorResult";
 export type { IBlendiaMcpFailure } from "./IBlendiaMcpFailure";
