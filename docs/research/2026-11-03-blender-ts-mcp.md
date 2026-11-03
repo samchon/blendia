@@ -171,7 +171,7 @@ MCP client ── @typia/mcp controller ────────┤
 | `@blendia/protocol` | request/response/error/event, session/job/artifact DTO, protocol version·capabilities. Blender↔Node용 규약이며 MCP와 별개 | TS 원본+Python 대응 구현/생성물 |
 | `@blendia/sdk` | 사용자가 import하는 typed API, remote handle, 조회·수정·batch, scene 관찰·결과물 조회. 가짜 동기 bpy를 약속하지 않음 | TypeScript |
 | `@blendia/runtime` | `ttsx` 실행 관리, 프로젝트/cwd/env, child lifecycle, session routing, job·log·artifact 관리. 새 TS 엔진 아님 | TypeScript |
-| `@blendia/cli` | init/doctor/run/inspect/capture/job 등 terminal interface. 공통 runtime/SDK 호출, JSON 출력·명확한 exit code | TypeScript |
+| `blendia` (`packages/cli`) | init/doctor/run/inspect/capture/job 등 terminal interface. 공통 runtime/SDK 호출, JSON 출력·명확한 exit code | TypeScript |
 | `@blendia/codegen` | 실제 Blender metadata 추출물에서 API types·docs 생성, 지원 버전 기록·수동 보완 | TypeScript+Python 추출 script |
 | `@blendia/mcp` | 위 서비스의 controller와 `@typia/mcp` 등록, native image/result adapter. schema 수작업의 별도 subsystem을 만들지 않음 | TypeScript |
 | `blender/extension` | 설치 가능한 Blender 확장. TS 실행 UI·프로젝트 연결·main-thread dispatch·Blender 문맥·객체참조·실행 결과/이벤트 | Python |

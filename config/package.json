@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "name": "@blendia/config",
+  "version": "0.1.0",
+  "description": "Shared TypeScript and compiler lint configuration.",
+  "scripts": {
+    "build": "ttsc --noEmit"
+  },
+  "devDependencies": {
+    "@ttsc/evidence": "catalog:samchon",
+    "@ttsc/lint": "catalog:samchon",
+    "@types/node": "catalog:utils",
+    "ttsc": "catalog:samchon",
+    "typescript": "catalog:typescript"
+  }
+}

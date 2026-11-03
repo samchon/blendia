@@ -1,0 +1,16 @@
+node_modules/
+lib/
+dist/
+*.tsbuildinfo
+*.tgz
+.DS_Store
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+
+# Compiler spill beside TypeScript sources is generated output.
+packages/*/src/**/*.js
+packages/*/src/**/*.js.map
+packages/*/src/**/*.d.ts
