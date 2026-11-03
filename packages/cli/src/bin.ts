@@ -6,6 +6,7 @@ import {
   TEXT_MACRO_MAX_BYTES,
   discoverBlenderSessions,
   doctorProject,
+  redactKnownToken,
   runProjectScript,
   runTextMacro,
 } from "@blendia/runtime";
@@ -92,16 +93,27 @@ async function main(): Promise<void> {
       text,
     });
     process.stderr.write(
-      `blendia: Text origin ${JSON.stringify(macro.origin)}, source ${JSON.stringify(macro.sourcePath)}, staged ${JSON.stringify(macro.stagedPath)} (${macro.staging}).\n`,
+      redactKnownToken(
+        `blendia: Text origin ${JSON.stringify(macro.origin)}, source ${JSON.stringify(macro.sourcePath)}, staged ${JSON.stringify(macro.stagedPath)} (${macro.staging}).\n`,
+        process.env.BLENDIA_TOKEN ?? "",
+      ),
     );
     if (macro.cleanupError !== undefined)
-      process.stderr.write(`blendia: ${macro.cleanupError}\n`);
+      process.stderr.write(
+        redactKnownToken(
+          `blendia: ${macro.cleanupError}\n`,
+          process.env.BLENDIA_TOKEN ?? "",
+        ),
+      );
     retained = macro.staging === "retained";
     result = macro;
   } else result = await runProjectScript(command.options);
   if (result.signal !== null) {
     process.stderr.write(
-      `blendia: script launcher terminated by ${result.signal}.\n`,
+      redactKnownToken(
+        `blendia: script launcher terminated by ${result.signal}.\n`,
+        process.env.BLENDIA_TOKEN ?? "",
+      ),
     );
     process.exitCode = 1;
   } else process.exitCode = retained ? 1 : (result.code ?? 1);
@@ -146,8 +158,6 @@ void main().catch((error: unknown): void => {
   const message: string =
     error instanceof Error ? error.message : String(error);
   const token: string = process.env.BLENDIA_TOKEN ?? "";
-  process.stderr.write(
-    `${token.length === 0 ? message : message.split(token).join("[REDACTED]")}\n`,
-  );
+  process.stderr.write(redactKnownToken(`${message}\n`, token));
   process.exitCode = 1;
 });

@@ -2,6 +2,7 @@ import { StringDecoder } from "node:string_decoder";
 
 import type { IScriptLogEntry } from "../IScriptLogEntry";
 import type { IScriptLogPage } from "../IScriptLogPage";
+import { redactKnownToken } from "../redactKnownToken";
 
 /**
  * Continuously decode/redact two streams and retain only bounded payload and entry counts.
@@ -114,15 +115,7 @@ export class ScriptLog {
     let text: string = (this.pending.get(stream) ?? "") + decoded;
     this.pending.delete(stream);
     if (this.token.length !== 0) {
-      let output: string = "";
-      let index: number = text.indexOf(this.token);
-      while (index !== -1) {
-        output +=
-          text.slice(0, index) +
-          ("[REDACTED]".includes(this.token) ? "" : "[REDACTED]");
-        text = text.slice(index + this.token.length);
-        index = text.indexOf(this.token);
-      }
+      text = redactKnownToken(text, this.token);
       let held: number = 0;
       if (!final) {
         const limit: number = Math.min(text.length, this.token.length - 1);
@@ -133,7 +126,7 @@ export class ScriptLog {
           }
       }
       if (held !== 0) this.pending.set(stream, text.slice(-held));
-      text = output + text.slice(0, text.length - held);
+      text = text.slice(0, text.length - held);
     }
 
     let piece: string = "";

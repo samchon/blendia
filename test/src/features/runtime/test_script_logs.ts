@@ -12,10 +12,11 @@ import { ScriptLog } from "../../../../packages/runtime/src/internal/ScriptLog";
  * 2. Stream tags, finish ownership, and returned entry copies remain independent.
  * 3. Byte and entry-count paging advance cursors without silently dropping retained data.
  * 4. Byte and entry-count retention report gaps; invalid reads never change the journal.
+ * 5. Arbitrary credentials cannot reappear inside replacement text or at either replacement boundary.
  *
  * @evidence contracts/testing.md#behavioral-verification Exercise the journal actually consumed by ScriptJob, observing decoded text, stream tags, redaction, copied pages, cursors, bounds, and refusals without child processes or replaced methods.
- * @evidence contracts/testing.md#independent-expectations Literal UTF-8 text and the documented 2048-byte entries, 4096-byte minimum pages, 128-entry pages, 65536-byte retention, and 1024-entry retention determine expected output independently of private buffers.
- * @evidence contracts/testing.md#distinguishing-cases Cover every byte split of multibyte secrets, incomplete token prefixes, idempotent finish, append after finish, exact and exceeded bounds, old and future cursors, and immutable read results; actual pipe lifecycle belongs to product validation.
+ * @evidence contracts/testing.md#independent-expectations Safe literal surroundings and the absence of the known credential determine redaction expectations without copying a replacement marker; the documented UTF-8 byte, entry, page, and retention bounds independently determine paging observations.
+ * @evidence contracts/testing.md#distinguishing-cases Cover every byte split of multibyte and marker-colliding secrets, both replacement boundaries, incomplete token prefixes, finish ownership, exact and exceeded bounds, old and future cursors, and immutable reads; actual pipe lifecycle belongs to product validation.
  * @evidence contracts/testing.md#execution-ownership DynamicExecutor discovers this named case against the production internal journal; all inputs are byte buffers and real journal calls, with no filesystem fixture, process mock, or test-only seam.
  */
 export function test_script_logs(): void {
@@ -31,13 +32,58 @@ export function test_script_logs(): void {
     assert.equal(partial.includes(token), false);
     log.append("stdout", wire.subarray(cut));
     log.finish("stdout");
-    assert.equal(
-      log
+    const visible: string = log
+      .read()
+      .entries.map((entry: IScriptLogEntry): string => entry.text)
+      .join("");
+    assert.ok(visible.startsWith("before "));
+    assert.ok(visible.endsWith(" after 한🔐"));
+    assert.equal(visible.includes(token), false);
+    assert.equal(visible.includes("\ufffd"), false);
+  }
+
+  const collisions: readonly (readonly [string, string])[] = [
+    ["A[", "AA["],
+    ["]B", "]BB"],
+    ["REDACTED", "REDACTED"],
+    ["truncated", "truncated"],
+    ["█", "██"],
+    ["█\ue000", "█\ue000"],
+  ];
+  for (const [secret, input] of collisions) {
+    const bytes: Buffer = Buffer.from(`left🧭 ${input} right한`, "utf8");
+    for (let cut: number = 0; cut <= bytes.byteLength; cut++) {
+      const log: ScriptLog = new ScriptLog(secret);
+      log.append("stdout", bytes.subarray(0, cut));
+      assert.equal(
+        log
+          .read()
+          .entries.map((entry: IScriptLogEntry): string => entry.text)
+          .join("")
+          .includes(secret),
+        false,
+      );
+      log.append("stdout", bytes.subarray(cut));
+      assert.equal(
+        log
+          .read()
+          .entries.map((entry: IScriptLogEntry): string => entry.text)
+          .join("")
+          .includes(secret),
+        false,
+      );
+      log.finish("stdout");
+      const visible: string = log
         .read()
         .entries.map((entry: IScriptLogEntry): string => entry.text)
-        .join(""),
-      "before [REDACTED] after 한🔐",
-    );
+        .join("");
+      assert.ok(visible.startsWith("left🧭 "));
+      assert.ok(visible.endsWith(" right한"));
+      assert.equal(visible.includes(secret), false);
+      assert.equal(visible.includes("\ufffd"), false);
+      for (const entry of log.read().entries)
+        assert.ok(Buffer.byteLength(entry.text, "utf8") <= 2048);
+    }
   }
 
   const streams: ScriptLog = new ScriptLog("secret");
@@ -46,12 +92,25 @@ export function test_script_logs(): void {
   streams.append("stdout", Buffer.from("ret!"));
   streams.finish("stdout");
   streams.finish("stderr");
-  assert.deepEqual(streams.read().entries, [
-    { cursor: 0, stream: "stdout", text: "out " },
-    { cursor: 1, stream: "stderr", text: "err [REDACTED]" },
-    { cursor: 2, stream: "stdout", text: "[REDACTED]!" },
-  ]);
   const finished: IScriptLogPage = streams.read();
+  assert.deepEqual(
+    finished.entries.map((entry: IScriptLogEntry): string => entry.stream),
+    ["stdout", "stderr", "stdout"],
+  );
+  assert.deepEqual(
+    finished.entries.map((entry: IScriptLogEntry): number => entry.cursor),
+    [0, 1, 2],
+  );
+  assert.equal(finished.entries[0].text, "out ");
+  assert.ok(finished.entries[1].text.startsWith("err "));
+  assert.ok(finished.entries[2].text.endsWith("!"));
+  assert.equal(
+    finished.entries
+      .map((entry: IScriptLogEntry): string => entry.text)
+      .join("")
+      .includes("secret"),
+    false,
+  );
   streams.finish("stdout");
   assert.deepEqual(streams.read(), finished);
   assert.throws(

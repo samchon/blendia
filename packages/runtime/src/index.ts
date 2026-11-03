@@ -15,6 +15,7 @@ export type { IScriptLogPage } from "./IScriptLogPage";
 export { ScriptJob } from "./ScriptJob";
 export { startScriptJob } from "./startScriptJob";
 export { getScriptJob } from "./getScriptJob";
+export { redactKnownToken } from "./redactKnownToken";
 export type { IBlenderDiscoveryOptions } from "./IBlenderDiscoveryOptions";
 export type { IBlenderDiscoveredSession } from "./IBlenderDiscoveredSession";
 export type { IBlenderDiscoveryResult } from "./IBlenderDiscoveryResult";

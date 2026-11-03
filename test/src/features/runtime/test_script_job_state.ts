@@ -11,10 +11,11 @@ import { ScriptJobState } from "../../../../packages/runtime/src/internal/Script
  * 1. Starting, running, draining, and terminal remain ordered despite late phase notifications.
  * 2. Nonzero ordinary exits remain exited; launch failures and uncertain termination stay distinct.
  * 3. Returned snapshots are copies, and Text metadata is redacted and bounded without breaking Unicode.
+ * 4. Arbitrary credentials cannot be reconstructed by replacement boundaries or truncation display text.
  *
  * @evidence contracts/testing.md#behavioral-verification Invoke the production state owner consumed by ScriptJob and observe phases, outcomes, copy ownership, bounded metadata, and sanitized public diagnostics without inventing a child process or lifecycle implementation.
- * @evidence contracts/testing.md#independent-expectations The accepted phase order, distinction between exit status and launch failure, private-error boundary, and 4096-byte public-field limit determine literal observations independently of the state object's private storage.
- * @evidence contracts/testing.md#distinguishing-cases Cover bootstrap failure, nonzero exit, uncertain termination, refused backward and repeated completion, ignored late events, caller mutation, and multibyte secret-bearing metadata; actual process EOF and cleanup remain manual product checks.
+ * @evidence contracts/testing.md#independent-expectations Phase order, exit versus launch failure, absence of private credentials, safe literal surroundings, and the 4096-byte field limit determine observations independently of storage or a particular replacement marker.
+ * @evidence contracts/testing.md#distinguishing-cases Cover bootstrap failure, nonzero exit, uncertainty, backward and repeated completion, late events, caller mutation, multibyte metadata, marker-colliding credentials and both replacement boundaries; actual process EOF and cleanup remain manual checks.
  * @evidence contracts/testing.md#execution-ownership DynamicExecutor discovers this named case against actual first-party ScriptJobState; its execution-result values are ordinary production inputs, with no process mocks, fixture launcher, or test-only API.
  */
 export function test_script_job_state(): void {
@@ -97,13 +98,73 @@ export function test_script_job_state(): void {
   });
   const snapshot: IScriptJobSnapshot = text.inspect();
   assert.ok(snapshot.result !== undefined && "sourcePath" in snapshot.result);
-  assert.equal(snapshot.result.sourcePath, "/[REDACTED]/scene.ts");
-  assert.equal(snapshot.result.stagedPath, "/[REDACTED]/staged.ts");
-  assert.equal(snapshot.result.cleanupError, "unsafe [REDACTED]");
+  assert.ok(snapshot.result.sourcePath.startsWith("/"));
+  assert.ok(snapshot.result.sourcePath.endsWith("/scene.ts"));
+  assert.ok(snapshot.result.stagedPath.startsWith("/"));
+  assert.ok(snapshot.result.stagedPath.endsWith("/staged.ts"));
+  assert.ok(snapshot.result.cleanupError?.startsWith("unsafe "));
   assert.equal(snapshot.result.staging, "retained");
   assert.equal(snapshot.metadataTruncated, true);
   assert.ok(Buffer.byteLength(snapshot.result.origin, "utf8") <= 4096);
-  assert.ok(snapshot.result.origin.endsWith("[truncated]"));
+  assert.ok(snapshot.result.origin.endsWith("한"));
   assert.equal(snapshot.result.origin.includes("\ufffd"), false);
   assert.equal(JSON.stringify(snapshot).includes(token), false);
+
+  const collisions: readonly (readonly [string, string])[] = [
+    ["A[", "AA["],
+    ["]B", "]BB"],
+    ["REDACTED", "REDACTED"],
+    ["truncated", "truncated"],
+    ["█", "██"],
+    ["█\ue000", "█\ue000"],
+  ];
+  for (const [secret, input] of collisions) {
+    const metadata: ScriptJobState = new ScriptJobState(
+      "metadata",
+      "owner",
+      secret,
+    );
+    metadata.complete({
+      outcome: "exited",
+      result: {
+        code: 0,
+        signal: null,
+        sourcePath: `/safe/${input}/scene.ts`,
+        stagedPath: `/safe/${input}/staged.ts`,
+        origin: `safe-origin ${input}${"한".repeat(2000)}`,
+        staging: "retained",
+        cleanupError: `safe-error ${input} end`,
+      },
+    });
+    const publicState: IScriptJobSnapshot = metadata.inspect();
+    assert.ok(
+      publicState.result !== undefined && "sourcePath" in publicState.result,
+    );
+    assert.equal(publicState.metadataTruncated, true);
+    assert.ok(publicState.result.sourcePath.startsWith("/safe/"));
+    assert.ok(publicState.result.sourcePath.endsWith("/scene.ts"));
+    assert.ok(publicState.result.stagedPath.startsWith("/safe/"));
+    assert.ok(publicState.result.stagedPath.endsWith("/staged.ts"));
+    assert.ok(publicState.result.origin.startsWith("safe-origin "));
+    assert.ok(publicState.result.origin.endsWith("한"));
+    assert.ok(publicState.result.cleanupError?.startsWith("safe-error "));
+    assert.ok(publicState.result.cleanupError?.endsWith(" end"));
+    for (const value of [
+      publicState.result.sourcePath,
+      publicState.result.stagedPath,
+      publicState.result.origin,
+      publicState.result.cleanupError ?? "",
+    ]) {
+      assert.equal(value.includes(secret), false);
+      assert.equal(value.includes("\ufffd"), false);
+      assert.ok(Buffer.byteLength(value, "utf8") <= 4096);
+    }
+    const origin: string = publicState.result.origin;
+    publicState.result.origin = "caller mutation";
+    const unchanged: IScriptJobSnapshot = metadata.inspect();
+    assert.ok(
+      unchanged.result !== undefined && "sourcePath" in unchanged.result,
+    );
+    assert.equal(unchanged.result.origin, origin);
+  }
 }

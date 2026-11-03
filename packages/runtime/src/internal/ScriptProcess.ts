@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import process from "node:process";
 
 import type { IScriptProcessOptions } from "./IScriptProcessOptions";
 import type { IScriptProcessResult } from "./IScriptProcessResult";
@@ -69,6 +70,9 @@ export class ScriptProcess {
             child.stderr?.destroy();
             child.unref();
           }
+
+          // Windows can expose termination as an unsigned high-bit status without a signal.
+          // Preserve that raw code, but never authorize Text cleanup as an ordinary exit.
           resolve({
             result: { code, signal },
             outcome:
@@ -77,7 +81,8 @@ export class ScriptProcess {
                 : uncertain ||
                     failure !== undefined ||
                     signal !== null ||
-                    code === null
+                    code === null ||
+                    (process.platform === "win32" && code >= 0x80000000)
                   ? "unknown"
                   : "exited",
             error: failure,

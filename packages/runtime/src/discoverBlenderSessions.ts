@@ -1,9 +1,10 @@
-import { BlenderClient, BlenderError } from "@blendia/sdk";
-import type { IBlenderSession } from "@blendia/sdk";
-import { constants } from "node:fs";
-import type { Dir, Dirent, Stats } from "node:fs";
-import { lstat, open, opendir } from "node:fs/promises";
-import type { FileHandle } from "node:fs/promises";
+import {
+  BlenderClient,
+  BlenderError,
+  type IBlenderSession,
+} from "@blendia/sdk";
+import { type BigIntStats, type Dir, type Dirent, constants } from "node:fs";
+import { type FileHandle, lstat, open, opendir } from "node:fs/promises";
 import path from "node:path";
 import { TextDecoder } from "node:util";
 
@@ -84,7 +85,9 @@ export async function discoverBlenderSessions(
       let handle: FileHandle | null = null;
       let record: Record<string, unknown>;
       try {
-        const before: Stats = await lstat(descriptorPath);
+        const before: BigIntStats = await lstat(descriptorPath, {
+          bigint: true,
+        });
         if (before.isSymbolicLink() || !before.isFile()) {
           result.issues.push("DESCRIPTOR_NOT_REGULAR");
           continue;
@@ -93,7 +96,7 @@ export async function discoverBlenderSessions(
           descriptorPath,
           constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
         );
-        const current: Stats = await handle.stat();
+        const current: BigIntStats = await handle.stat({ bigint: true });
         if (
           !current.isFile() ||
           current.dev !== before.dev ||
@@ -102,7 +105,7 @@ export async function discoverBlenderSessions(
           result.issues.push("DESCRIPTOR_CHANGED");
           continue;
         }
-        if (current.size > 16384) {
+        if (current.size > 16384n) {
           result.issues.push("DESCRIPTOR_TOO_LARGE");
           continue;
         }

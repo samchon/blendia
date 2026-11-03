@@ -3,8 +3,10 @@ import {
   type IScriptJobSnapshot,
   type IScriptLogPage,
   type ScriptJob,
+  redactKnownToken,
   startScriptJob,
 } from "@blendia/runtime";
+import process from "node:process";
 import { setTimeout } from "node:timers/promises";
 
 import { writeMachineEvent } from "./writeMachineEvent";
@@ -60,8 +62,10 @@ export async function runMachineJob(
       outcome: "unknown",
       result: { code: null, signal: null },
       metadataTruncated: true,
-      diagnostic:
+      diagnostic: redactKnownToken(
         "Machine observation failed; staging may be retained and execution may remain active.",
+        request.options.connection?.token ?? process.env.BLENDIA_TOKEN ?? "",
+      ),
       earliestCursor: snapshot.earliestCursor,
       tailCursor: snapshot.tailCursor,
     };

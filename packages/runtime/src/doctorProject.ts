@@ -1,7 +1,5 @@
-import { constants } from "node:fs";
-import type { Stats } from "node:fs";
-import { access, open, stat } from "node:fs/promises";
-import type { FileHandle } from "node:fs/promises";
+import { type Stats, constants } from "node:fs";
+import { type FileHandle, access, open, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";

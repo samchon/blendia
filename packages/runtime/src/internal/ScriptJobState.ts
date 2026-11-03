@@ -1,5 +1,6 @@
 import type { IScriptJobSnapshot } from "../IScriptJobSnapshot";
 import type { ITextMacroResult } from "../ITextMacroResult";
+import { redactKnownToken } from "../redactKnownToken";
 import type { IScriptExecutionResult } from "./IScriptExecutionResult";
 
 /** Own monotonic launcher observations and bounded, credential-free public metadata. */
@@ -52,10 +53,11 @@ export class ScriptJobState {
       this.state.result = text;
     } else this.state.result = { code: result.code, signal: result.signal };
     if (execution.outcome !== "exited")
-      this.state.diagnostic =
+      this.state.diagnostic = this.sanitize(
         execution.outcome === "launch-failed"
           ? "Script preparation or launcher creation failed; inspect project paths and prerequisites. No scene rollback is implied."
-          : "Launcher termination or pipe completion is uncertain; descendants may remain active. No retry or rollback was performed.";
+          : "Launcher termination or pipe completion is uncertain; descendants may remain active. No retry or rollback was performed.",
+      );
   }
 
   /** Return detached metadata so readers cannot mutate lifecycle state. */
@@ -79,22 +81,17 @@ export class ScriptJobState {
 
   /** Mark display truncation explicitly; filesystem cleanup never consumes this projection. */
   private sanitize(value: string): string {
-    const redacted: string =
-      this.token.length === 0
-        ? value
-        : value
-            .split(this.token)
-            .join("[REDACTED]".includes(this.token) ? "" : "[REDACTED]");
+    const redacted: string = redactKnownToken(value, this.token);
     if (Buffer.byteLength(redacted, "utf8") <= 4096) return redacted;
     this.state.metadataTruncated = true;
     let result: string = "";
     let size: number = 0;
     for (const character of redacted) {
       const length: number = Buffer.byteLength(character, "utf8");
-      if (size + length > 4080) break;
+      if (size + length > 4096) break;
       result += character;
       size += length;
     }
-    return result + "[truncated]";
+    return result;
   }
 }

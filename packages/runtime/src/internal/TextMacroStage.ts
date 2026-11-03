@@ -10,14 +10,31 @@ import { TextMacroStageError } from "./TextMacroStageError";
 
 /** Single owner of exclusive sibling creation and full-width filesystem-identity cleanup. */
 export class TextMacroStage {
+  /** Resolved project directory used by the launcher. */
+  public readonly cwd: string;
+
+  /** Full intended source path, distinct from the actual staged module identity. */
+  public readonly sourcePath: string;
+
+  /** Full runtime-owned sibling path used for identity comparison and cleanup. */
+  public readonly stagedPath: string;
+
+  /** Original editor label, never used as a filesystem cleanup operand. */
+  public readonly origin: string;
+
   /** Keep full original paths and filesystem identity private from bounded display projections. */
   private constructor(
-    public readonly cwd: string,
-    public readonly sourcePath: string,
-    public readonly stagedPath: string,
-    public readonly origin: string,
+    cwd: string,
+    sourcePath: string,
+    stagedPath: string,
+    origin: string,
     private readonly identity: fs.BigIntStats,
-  ) {}
+  ) {
+    this.cwd = cwd;
+    this.sourcePath = sourcePath;
+    this.stagedPath = stagedPath;
+    this.origin = origin;
+  }
 
   /** Refuse escapes and unsupported modules before exclusive creation; retained write failures report ownership. */
   public static create(options: ITextMacroOptions): TextMacroStage {
