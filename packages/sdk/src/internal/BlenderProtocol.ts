@@ -13,9 +13,6 @@ import type { IBlenderWireResponse } from "./IBlenderWireResponse";
  * @evidence contracts/common.md#clear-and-simple-design One codec serves the actual client; protocol details stay internal while public DTOs are shared with real consumers.
  * @evidence contracts/common.md#prohibited-implementation-shortcuts No unchecked cast is used as a substitute for field validation; unknown fields are not promoted to capabilities.
  * @evidence contracts/common.md#meaningful-documentation Input failures use INVALID_ARGUMENT and malformed server values use INVALID_RESPONSE; local coordinates and Euler radians are preserved without conversion.
- * @evidence contracts/performance.md#efficient-algorithms Checks visit fixed field sets and identifier strings, with message memory already limited by the frame decoder.
- * @evidence contracts/performance.md#reuse-equivalent-work No validation cache is retained; identity checks depend on the current connection and generation.
- * @evidence contracts/performance.md#bound-retention-and-release-resources Methods return fresh small records and arrays; they own no socket, timer, or persistent state.
  */
 export class BlenderProtocol {
   /**
@@ -25,9 +22,6 @@ export class BlenderProtocol {
    * @evidence contracts/common.md#clear-and-simple-design This validates the common envelope; method results are checked by session or snapshot.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Server error effects are mandatory and are not inferred from an error code.
    * @evidence contracts/common.md#meaningful-documentation Identity is optional for pre-authentication errors; the client requires it for successful authenticated replies.
-   * @evidence contracts/performance.md#efficient-algorithms The envelope uses a fixed number of checks over a frame-bounded object.
-   * @evidence contracts/performance.md#reuse-equivalent-work No response or id history is cached.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources The returned view belongs to the active request and retains only its bounded parsed frame.
    */
   public static response(value: unknown): IBlenderWireResponse {
     const record: Record<string, unknown> = this.record(
@@ -89,9 +83,6 @@ export class BlenderProtocol {
    * @evidence contracts/common.md#clear-and-simple-design Handshake data becomes the client's one session identity and capability set.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts A mismatched protocol is rejected rather than translated or retried on another endpoint.
    * @evidence contracts/common.md#meaningful-documentation The result records the actual server version string without claiming API compatibility beyond advertised methods.
-   * @evidence contracts/performance.md#efficient-algorithms Copying is linear in capability count and string storage.
-   * @evidence contracts/performance.md#reuse-equivalent-work The resulting metadata is reused within one client, never across bridge sessions.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources The copied capability array is owned by its recipient and retains no transport resources.
    */
   public static session(value: unknown): IBlenderSession {
     const record: Record<string, unknown> = this.record(
@@ -133,9 +124,6 @@ export class BlenderProtocol {
    * @evidence contracts/common.md#clear-and-simple-design This is the single snapshot decoder used by create, get, and transform methods.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Malformed or foreign object data is rejected rather than asserted as a public snapshot.
    * @evidence contracts/common.md#meaningful-documentation Vectors remain local Blender properties and Euler radians; they are not transformed to world space.
-   * @evidence contracts/performance.md#efficient-algorithms Validation checks a fixed number of fields and copies nine numbers plus bounded identity strings.
-   * @evidence contracts/performance.md#reuse-equivalent-work No snapshot cache can become stale across mutations.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources The returned arrays are independent of the parsed response; the caller owns them.
    */
   public static snapshot(
     value: unknown,
@@ -179,9 +167,6 @@ export class BlenderProtocol {
    * @evidence contracts/common.md#clear-and-simple-design The client uses this validator for caller handles and server snapshots with distinct failure categories.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Object identity is never converted to a JavaScript number or replaced by a mutable name.
    * @evidence contracts/common.md#meaningful-documentation Structural validity does not prove the object exists; the live bridge performs fresh lookup and lifetime checks.
-   * @evidence contracts/performance.md#efficient-algorithms Work is linear in identifier text length and otherwise constant.
-   * @evidence contracts/performance.md#reuse-equivalent-work No lookup or handle cache is retained.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources The returned record contains three scalars and acquires no Blender reference.
    */
   public static handle(
     value: unknown,
@@ -213,9 +198,6 @@ export class BlenderProtocol {
    * @evidence contracts/common.md#clear-and-simple-design Creation validation belongs at the client boundary and is repeated independently in Python.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Invalid numeric values cannot become JSON null and names are not rewritten to satisfy fixtures.
    * @evidence contracts/common.md#meaningful-documentation Absent size uses the server default of two Blender units; actual assigned names come from the response.
-   * @evidence contracts/performance.md#efficient-algorithms Validation inspects two fields and scans the name once.
-   * @evidence contracts/performance.md#reuse-equivalent-work Equal options do not share work because every call creates a distinct object.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources The copied parameter record survives only encoding; created scene data belongs to Blender.
    */
   public static cube(value: IBlenderCubeOptions): IBlenderCubeOptions {
     const record: Record<string, unknown> = this.record(
@@ -256,9 +238,6 @@ export class BlenderProtocol {
    * @evidence contracts/common.md#clear-and-simple-design Validation completes before the client's mutation request is constructed.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Unsupported extra fields cannot turn an empty update into an accepted mutation.
    * @evidence contracts/common.md#meaningful-documentation Translation and scale stay in local coordinates, and rotationEuler values stay XYZ radians without normalization.
-   * @evidence contracts/performance.md#efficient-algorithms At most three triples are copied, so cost does not depend on scene size.
-   * @evidence contracts/performance.md#reuse-equivalent-work No mutation result is cached or reused.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources The returned arrays are request-owned and released after their frame is encoded.
    */
   public static transform(value: IBlenderTransform): IBlenderTransform {
     const record: Record<string, unknown> = this.record(

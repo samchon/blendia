@@ -11,6 +11,10 @@ dist/
 __pycache__/
 *.py[cod]
 
+# Copies are created only for distribution; the repository LICENSE is canonical.
+/packages/*/LICENSE
+/blender/extension/LICENSE
+
 # Compiler spill beside TypeScript sources is generated output.
 packages/*/src/**/*.js
 packages/*/src/**/*.js.map

@@ -1,6 +1,6 @@
 # Common implementation principles
 
-Answer from the declaration's actual behavior. Keep simple decisions brief and do not invent design history.
+These questions apply only where a declaration owns a material implementation assumption or design decision selected by its package configuration. They are not a template for every DTO, property, parser, or configuration object. Answer from actual behavior; keep simple decisions brief and do not invent design history or boilerplate answers.
 
 ## Principled Implementation
 

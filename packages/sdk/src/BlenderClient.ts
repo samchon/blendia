@@ -9,6 +9,7 @@ import type { IBlenderObjectTransform } from "./IBlenderObjectTransform";
 import type { IBlenderSession } from "./IBlenderSession";
 import { BlenderFrameDecoder } from "./internal/BlenderFrameDecoder";
 import { BlenderProtocol } from "./internal/BlenderProtocol";
+import type { IBlenderPendingRequest } from "./internal/IBlenderPendingRequest";
 import type { IBlenderWireResponse } from "./internal/IBlenderWireResponse";
 
 /**
@@ -18,8 +19,6 @@ import type { IBlenderWireResponse } from "./internal/IBlenderWireResponse";
  * @evidence contracts/common.md#clear-and-simple-design Socket ownership and request state live in this client; Blender executes the bounded allowlist and the runtime owns project process launch.
  * @evidence contracts/common.md#prohibited-implementation-shortcuts Timeout or connection loss after a sent mutation is OUTCOME_UNKNOWN, never a fabricated rollback or retry.
  * @evidence contracts/common.md#meaningful-documentation Only local cube, object readback, and transform operations are exposed; disconnect releases ownership without removing scene data.
- * @evidence contracts/performance.md#efficient-algorithms Framing is linear in payload bytes, response lookup is constant with one pending request, and object resolution cost belongs to Blender.
- * @evidence contracts/performance.md#reuse-equivalent-work The session is reused within one connection, but snapshots and effectful requests are not cached or replayed.
  * @evidence contracts/performance.md#bound-retention-and-release-resources One socket, one decoder of at most 1MiB incomplete payload, and one request timeout are retained; disconnect and all terminal transport failures destroy the socket and reject pending work.
  */
 export class BlenderClient {
@@ -42,22 +41,7 @@ export class BlenderClient {
   private closed: boolean = false;
 
   /** Exactly one pending response; concurrent calls fail before transmission. */
-  private pending: {
-    /** Request correlation id. */
-    id: string;
-
-    /** Whether loss of this response may hide scene changes. */
-    mutation: boolean;
-
-    /** Timeout released on every resolution or failure. */
-    timer: NodeJS.Timeout;
-
-    /** Completion callback of the active request. */
-    resolve: (value: unknown) => void;
-
-    /** Failure callback of the active request. */
-    reject: (error: BlenderError) => void;
-  } | null = null;
+  private pending: IBlenderPendingRequest | null = null;
 
   /** Attach listeners before connecting so no socket failure is unobserved. */
   private constructor(socket: Socket, timeoutMs: number) {
@@ -79,9 +63,6 @@ export class BlenderClient {
    * @evidence contracts/common.md#clear-and-simple-design This factory returns only after authentication; callers cannot obtain a half-initialized client.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts No endpoint guessing, dependency injection of a fake socket, or retry changes the target Blender.
    * @evidence contracts/common.md#meaningful-documentation The timeout applies independently to connecting and each response; it does not stop Blender execution.
-   * @evidence contracts/performance.md#efficient-algorithms Connection setup is constant work plus bounded handshake framing and capability scanning.
-   * @evidence contracts/performance.md#reuse-equivalent-work Every connect opens a new owner connection; credentials are not pooled or retained on the client.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources Failure destroys the new socket and handshake timer; success transfers ownership to the returned client, which callers must disconnect.
    */
   public static async connect(
     options: IBlenderConnectionOptions = {},
@@ -197,9 +178,6 @@ export class BlenderClient {
    * @evidence contracts/common.md#clear-and-simple-design The method is one explicit bridge mutation, without a scene proxy or queued action graph.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Repeated calls create new objects; a lost reply is never retried.
    * @evidence contracts/common.md#meaningful-documentation Positive size is limited to 1e20 Blender units and defaults to two; name collisions are reflected in the returned snapshot.
-   * @evidence contracts/performance.md#efficient-algorithms Client work is linear in bounded request and response bytes; cube topology is constant on the bridge.
-   * @evidence contracts/performance.md#reuse-equivalent-work No creation result is cached or reused across calls.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources The active request owns one timeout; the created Blender object survives disconnect and the caller owns its snapshot.
    */
   public async createCube(
     options: IBlenderCubeOptions = {},
@@ -218,9 +196,6 @@ export class BlenderClient {
    * @evidence contracts/common.md#clear-and-simple-design Reads return data rather than a live object wrapper.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Stale handles never fall back to an object with the same name.
    * @evidence contracts/common.md#meaningful-documentation The result describes local properties and does not evaluate world geometry.
-   * @evidence contracts/performance.md#efficient-algorithms Client validation is fixed-field work; the bridge's fresh UID lookup can scan scene objects.
-   * @evidence contracts/performance.md#reuse-equivalent-work Every call reads again; previous snapshots are not a cache.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources One pending request and timeout are released on completion; returned data owns no Blender resources.
    */
   public async getObject(
     object: IBlenderObjectHandle,
@@ -236,9 +211,6 @@ export class BlenderClient {
    * @evidence contracts/common.md#clear-and-simple-design The target and partial transform form one explicit bridge operation.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Missing components are preserved; invalid vectors and empty updates are rejected rather than partially sent.
    * @evidence contracts/common.md#meaningful-documentation Rotation updates use XYZ Euler radians; translation and scale remain local properties.
-   * @evidence contracts/performance.md#efficient-algorithms Client work checks at most nine numbers plus bounded handle strings, independent of mesh size.
-   * @evidence contracts/performance.md#reuse-equivalent-work Equal updates remain effects and are never deduplicated or automatically replayed.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources The request retains one timer and encoded frame; the returned snapshot is caller-owned and scene changes remain after disconnect.
    */
   public async setTransform(
     update: IBlenderObjectTransform,
@@ -263,9 +235,6 @@ export class BlenderClient {
    * @evidence contracts/common.md#clear-and-simple-design Disconnect closes transport only and is separate from scene mutation or process termination.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts An in-flight request causes BUSY rather than pretending its Blender operation has been cancelled.
    * @evidence contracts/common.md#meaningful-documentation Scene data remains in Blender, and closing the connection does not promise rollback.
-   * @evidence contracts/performance.md#efficient-algorithms One fixed-size request and bounded response are processed; repeated calls after close return immediately.
-   * @evidence contracts/performance.md#reuse-equivalent-work The closed state avoids sending another disconnect; it does not reuse an operation result.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources The socket is destroyed in finally and the request timeout is cleared on every completion or failure.
    */
   public async disconnect(): Promise<void> {
     if (this.closed) return;

@@ -8,13 +8,15 @@
     "node": ">=22.23.2 <23"
   },
   "scripts": {
+    "blendia": "ttsx packages/cli/src/bin.ts",
+    "extension:license": "ttsx config/prepareExtensionLicense.ts",
     "build": "pnpm --filter=./packages/** -r build",
     "config:check": "pnpm --filter @blendia/config build",
     "test": "pnpm --filter @blendia/test start",
     "test:types": "pnpm --filter @blendia/test build",
     "format": "prettier --write \"**/*.{ts,cts,mts}\"",
     "format:check": "prettier --check \"**/*.{ts,cts,mts}\"",
-    "evidence": "pnpm --filter=./packages/** --filter=./test --no-bail --no-sort -r evidence"
+    "evidence": "pnpm --filter=./packages/** --filter=./test --no-bail --no-sort -r --if-present evidence"
   },
   "author": "Samchon",
   "license": "MIT",

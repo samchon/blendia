@@ -10,7 +10,6 @@ import { BlenderError } from "../BlenderError";
  * @evidence contracts/common.md#prohibited-implementation-shortcuts No replacement characters, partial JSON parsing, or guessed frame recovery is accepted; malformed input closes the owning client.
  * @evidence contracts/common.md#meaningful-documentation push returns only completed values; callers must discard the decoder after failure because remaining stream alignment is not recoverable.
  * @evidence contracts/performance.md#efficient-algorithms Each input byte is copied once into a four-byte header or a single preallocated payload; work is linear in input plus JSON parsing, avoiding repeated buffer concatenation.
- * @evidence contracts/performance.md#reuse-equivalent-work Only the unfinished frame is retained across pushes; completed messages are not cached.
  * @evidence contracts/performance.md#bound-retention-and-release-resources Retained raw state is at most one 1MiB payload and four header bytes; each returned array is owned by its caller and scales with complete frames in that input chunk.
  */
 export class BlenderFrameDecoder {
@@ -33,9 +32,6 @@ export class BlenderFrameDecoder {
    * @evidence contracts/common.md#clear-and-simple-design This method owns incremental transport framing only; method-specific response validation remains in BlenderProtocol.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Fatal UTF-8 and JSON errors are reported rather than patched or silently skipped.
    * @evidence contracts/common.md#meaningful-documentation The decoder is unusable after malformed input; a chunk can yield zero, one, or many messages.
-   * @evidence contracts/performance.md#efficient-algorithms Work is linear in chunk bytes and parsed JSON size; each payload is allocated once.
-   * @evidence contracts/performance.md#reuse-equivalent-work An incomplete header or payload is reused on the next push; completed messages are not retained.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources One incomplete payload is bounded to 1MiB; completed results leave the decoder in the returned array.
    */
   public push(chunk: Uint8Array): unknown[] {
     const messages: unknown[] = [];
@@ -101,9 +97,6 @@ export class BlenderFrameDecoder {
    * @evidence contracts/common.md#clear-and-simple-design The client uses this encoder before retaining a pending request or writing to its socket.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Unsupported root values and serialization failures are errors rather than empty or truncated frames.
    * @evidence contracts/common.md#meaningful-documentation The cap applies to encoded bytes rather than JavaScript UTF-16 character count.
-   * @evidence contracts/performance.md#efficient-algorithms Serialization and copying are linear in encoded size; the output contains one four-byte prefix plus its payload.
-   * @evidence contracts/performance.md#reuse-equivalent-work Frames are not cached because request IDs and mutation semantics distinguish requests.
-   * @evidence contracts/performance.md#bound-retention-and-release-resources The returned frame is caller-owned; this static method retains no buffers.
    */
   public static encode(message: unknown): Buffer {
     let text: string | undefined;
