@@ -9,6 +9,8 @@ Blendia is a pnpm TypeScript monorepo that lets users and coding agents run proj
 
 Use TypeScript for packages and general development helpers. Use Python where execution must occur inside Blender against `bpy`, including extension registration, main-thread dispatch, UI integration, and API metadata extraction. A Blender fork or another embedded JavaScript engine is unnecessary for the planned execution model.
 
+Local consumers execute source TypeScript without a build, under the [source and distribution contract](../development/SKILL.md#local-source-and-distribution). Package configuration, execution wrappers, and verification must preserve that contract.
+
 `packages/sdk`, `runtime`, `cli`, and `mcp` own their public surfaces; `config` owns shared tooling. Introduce APIs and dependencies with real producers and consumers. Keep session and job execution reusable across the SDK, CLI, MCP, and Blender's Run TypeScript action rather than implementing the product twice. Use `typia.llm.application` and `@typia/mcp` for the MCP surface, including appropriate native image content for visual inspection. MCP also supports nonvisual inspection and execution.
 
 The package names are `@blendia/sdk`, `@blendia/runtime`, `blendia`, and `@blendia/mcp`. The unscoped CLI package remains in `packages/cli`. Workspace build and Evidence selection must include it alongside the scoped packages.

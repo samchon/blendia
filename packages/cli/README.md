@@ -2,14 +2,14 @@
 
 Execute an existing project TypeScript script through the shared `@blendia/runtime` launcher. Blender modeling operations are performed by the SDK imported by that script, against a running Blendia extension. This package does not start a second Blender engine or automatically acquire an SDK connection.
 
-The CLI is not yet published to npm. With the repository's `blendia` executable available, run a file from its own project:
+The CLI is not yet published to npm. Run it directly from this checkout through `ttsx`, without building first:
 
 ```sh
-blendia --help
-blendia run --cwd /path/to/project --project tsconfig.json src/model.ts -- --name Cube
+pnpm exec ttsx packages/cli/src/bin.ts --help
+pnpm exec ttsx packages/cli/src/bin.ts run --cwd /path/to/project --project tsconfig.json src/model.ts -- --name Cube
 ```
 
-The script's project must provide its own SDK and npm dependencies; the launcher does not install them or rewrite package resolution.
+The script's project must provide its native TypeScript compiler, SDK, imported npm packages, and any plugins named in its tsconfig. Install the compiler there with `npm install --save-dev typescript`, with optional dependencies enabled. The launcher does not install dependencies or rewrite package resolution.
 
 ```text
 blendia run [--cwd <dir>] [--project <tsconfig>] <entry> [-- <script args...>]
