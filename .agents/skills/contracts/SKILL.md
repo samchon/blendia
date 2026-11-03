@@ -14,6 +14,10 @@ Select a contract because a specific declaration owns a material requirement. Do
 | [common.md](common.md) | Declarations owning a material implementation assumption or design decision |
 | [performance.md](performance.md) | Operations with material algorithm, reuse, or resource-lifetime requirements |
 | [testing.md](testing.md) | Meaningful first-party unit cases |
+| [Blender scenario contracts](../../../tests/test-blender/contracts/blender.md) | Actual engine scenario functions in `tests/test-blender` |
+| [Extension installation contracts](../../../tests/test-blender/contracts/installation.md) | The engine module's official ZIP installation helper |
+
+The unit module selects the shared testing checklist in its own `evidence.config.ts`; the engine module owns its engine and installation checklists and selectors. Keep those respondents distinct rather than imposing unit-only questions on real host scenarios. A contract answer explains the assertions and ownership; only an observed run establishes the execution result.
 
 Read the package configuration before writing answers. Select only declarations and questions justified by their actual responsibilities, using the checker's supported configuration API. A focused package contract may express a concrete requirement that the shared questions do not fit; it must not become another template imposed on every DTO. Each selected H2 is answered in the declaration's doc comment as `@evidence contracts/<file>.md#<anchor> <grounds>`, after a blank comment line. Read its callers, callees, and relevant tests before stating what it establishes. Generic assurances, invented measurements, and blanket exclusions are defects.
 

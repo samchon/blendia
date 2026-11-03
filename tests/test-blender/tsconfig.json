@@ -1,0 +1,15 @@
+{
+  "extends": "../../config/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "noEmit": true,
+    "plugins": [
+      {
+        "transform": "@ttsc/lint",
+        "configFile": "lint.config.ts",
+        "enabled": false
+      }
+    ]
+  },
+  "include": ["src"]
+}

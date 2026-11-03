@@ -1,0 +1,31 @@
+{
+  "private": true,
+  "name": "@blendia/test-blender",
+  "version": "0.1.0",
+  "description": "Actual Blender engine verification of Blendia scene and owned-process behavior.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "ttsc --noEmit",
+    "lint": "ttsx ../../config/checkLint.ts",
+    "start": "ttsx src/index.ts",
+    "evidence": "evidence"
+  },
+  "author": "Samchon",
+  "license": "MIT",
+  "dependencies": {
+    "@blendia/runtime": "workspace:^",
+    "@blendia/sdk": "workspace:^",
+    "@nestia/e2e": "catalog:samchon"
+  },
+  "devDependencies": {
+    "@ttsc/evidence": "catalog:samchon",
+    "@ttsc/lint": "catalog:samchon",
+    "@types/node": "catalog:utils",
+    "@wrtnlabs/evidence": "catalog:samchon",
+    "ttsc": "catalog:samchon",
+    "typescript": "catalog:typescript"
+  }
+}

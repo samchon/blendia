@@ -1,7 +1,7 @@
 packages:
   - config
   - packages/*
-  - test
+  - tests/*
 
 catalogs:
   samchon:

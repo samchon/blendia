@@ -1,6 +1,6 @@
 # Test contracts
 
-Apply this checklist only to meaningful unit tests permitted by the [testing guide](../development/testing.md). Answer from actual first-party behavior and assertions; a passing run alone does not answer a contract.
+The unit module selects this checklist for meaningful first-party units permitted by the [testing guide](../development/testing.md). Actual Blender scenarios and extension installation answer their own [module contracts](../../../tests/test-blender/contracts/blender.md), selected by the engine package rather than this unit checklist. Answer from actual behavior and assertions; a passing run alone does not answer a contract.
 
 ## Behavioral verification
 

@@ -1,0 +1,34 @@
+{
+  "private": true,
+  "name": "@blendia/test-units",
+  "version": "0.1.0",
+  "description": "Unit tests of Blendia's first-party protocol, execution, and CLI logic.",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "ttsc --noEmit",
+    "lint": "ttsx ../../config/checkLint.ts",
+    "start": "ttsx src/index.ts",
+    "evidence": "evidence"
+  },
+  "author": "Samchon",
+  "license": "MIT",
+  "dependencies": {
+    "@blendia/mcp": "workspace:^",
+    "@blendia/runtime": "workspace:^",
+    "@blendia/sdk": "workspace:^",
+    "@nestia/e2e": "catalog:samchon",
+    "blendia": "workspace:^",
+    "typia": "catalog:samchon"
+  },
+  "devDependencies": {
+    "@ttsc/evidence": "catalog:samchon",
+    "@ttsc/lint": "catalog:samchon",
+    "@types/node": "catalog:utils",
+    "@wrtnlabs/evidence": "catalog:samchon",
+    "ttsc": "catalog:samchon",
+    "typescript": "catalog:typescript"
+  }
+}

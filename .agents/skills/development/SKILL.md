@@ -19,7 +19,7 @@ Shared `config` owns strict compiler settings, correctness lint through `@ttsc/l
 
 ## Local source and distribution
 
-Local development uses TypeScript sources without a build. Preserve this invariant in every package, resolver, launcher, and CI change. Following AutoMovie, package `main` is `src/index.ts`, local `exports["."]` points to `./src/index.ts`, and there is no local `types` field. Local CLI execution uses `ttsx`, with package `start` running `ttsx src/bin.ts`. Local execution, unit tests, test type checking, and Evidence must not require `lib` output or a preceding build.
+Local development uses TypeScript sources without a build. Preserve this invariant in every package, resolver, launcher, and CI change. Following AutoMovie, package `main` is `src/index.ts`, local `exports["."]` points to `./src/index.ts`, and there is no local `types` field. Local CLI execution uses `ttsx`, with package `start` running `ttsx src/bin.ts`. Local execution, first-party unit and actual Blender tests, test type checking, and Evidence must not require `lib` output or a preceding TypeScript build.
 
 Keep distribution metadata separate in `publishConfig`: `main` points to `lib/index.js`, `types` to `lib/index.d.ts`, and the published root export has built `types` and `default` entries. The CLI's `lib/bin.js` bin is a distribution entry, not the local execution path. Compilation remains an independent output-validation or distribution step. Do not add custom conditions, extra checking projects, or compiled fallbacks to compensate for broken source resolution.
 
