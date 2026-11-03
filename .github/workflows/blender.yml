@@ -1,0 +1,135 @@
+name: blender
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  source:
+    name: Blender source checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.2
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @blendia/test-blender lint
+      - run: pnpm run test:blender:types
+
+  engine:
+    name: Blender 5.2.0 CPU
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Configure isolated engine paths
+        shell: bash
+        run: |
+          {
+            printf 'BLENDER_ARCHIVE_DIRECTORY=%s/blendia-blender-download\n' "$RUNNER_TEMP"
+            printf 'BLENDIA_BLENDER_EXECUTABLE=%s/blender-5.2.0-linux-x64/blender\n' "$RUNNER_TEMP"
+            printf 'BLENDIA_EXTENSION_SOURCE_DIRECTORY=%s/blender/extension\n' "$GITHUB_WORKSPACE"
+            printf 'BLENDIA_TEST_OUTPUT_DIRECTORY=%s/blendia-engine-results\n' "$RUNNER_TEMP"
+          } >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.2
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - run: pnpm install --frozen-lockfile
+      - name: Restore official Blender archive
+        id: blender-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.BLENDER_ARCHIVE_DIRECTORY }}/blender-5.2.0-linux-x64.tar.xz
+          key: blender-5.2.0-linux-x64-96f6c181a30f4950607839dc84d42a354b250d8a0231b098b59b7bc69c351c48
+      - name: Download and verify Blender 5.2.0
+        shell: bash
+        run: |
+          mkdir -p "$BLENDER_ARCHIVE_DIRECTORY" "$BLENDIA_TEST_OUTPUT_DIRECTORY"
+          archive="$BLENDER_ARCHIVE_DIRECTORY/blender-5.2.0-linux-x64.tar.xz"
+          if [[ ! -f "$archive" ]]; then
+            curl --fail --location --retry 3 --connect-timeout 30 --max-time 300 \
+              --output "$archive.partial" \
+              https://download.blender.org/release/Blender5.2/blender-5.2.0-linux-x64.tar.xz
+            mv "$archive.partial" "$archive"
+          fi
+          # Verify cache hits too; this digest is from the official 5.2.0 SHA-256 manifest.
+          printf '%s  %s\n' \
+            96f6c181a30f4950607839dc84d42a354b250d8a0231b098b59b7bc69c351c48 \
+            "$archive" | sha256sum --check --strict
+          tar --extract --xz --file "$archive" --directory "$RUNNER_TEMP"
+      - name: Cache verified official archive
+        if: steps.blender-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.BLENDER_ARCHIVE_DIRECTORY }}/blender-5.2.0-linux-x64.tar.xz
+          key: blender-5.2.0-linux-x64-96f6c181a30f4950607839dc84d42a354b250d8a0231b098b59b7bc69c351c48
+      - name: Prepare the canonical extension license
+        run: pnpm run extension:license
+      - name: Run real-engine scenarios against the ZIP-installed extension
+        run: pnpm run test:blender
+      - name: Stage bounded public observations
+        if: always()
+        shell: bash
+        run: |
+          staging="$RUNNER_TEMP/blendia-engine-upload"
+          mkdir -p "$staging"
+          manifest="$staging/artifact-manifest.txt"
+          printf 'Public Blender outputs only; private runtime storage is excluded.\n' > "$manifest"
+          total=0
+          status=0
+          if [[ -d "$BLENDIA_TEST_OUTPUT_DIRECTORY" ]]; then
+            candidates="$RUNNER_TEMP/blendia-engine-public-files"
+            find "$BLENDIA_TEST_OUTPUT_DIRECTORY" -type d -name private-runtime -prune -o -type f -print0 > "$candidates"
+            while IFS= read -r -d '' file; do
+              relative="${file#"$BLENDIA_TEST_OUTPUT_DIRECTORY"/}"
+              case "$relative" in
+                blendia-engine-*/extension-package/blendia-extension.zip|\
+                blendia-engine-*/extension-package/installed-extension.json|\
+                blendia-engine-*/native-observations/*.jsonl|\
+                blendia-engine-*/*.png|blendia-engine-*/*.blend|\
+                blendia-engine-*/*-result.json|\
+                blendia-engine-*/*native-observation.json|\
+                blendia-engine-*/object-handle.json) ;;
+                *) continue ;;
+              esac
+              size=$(stat --format=%s "$file")
+              if (( size > 67108864 || total + size > 268435456 )); then
+                printf 'Excluded by artifact size cap: %s (%s bytes)\n' "$relative" "$size" >> "$manifest"
+                status=1
+                continue
+              fi
+              destination="$staging/$relative"
+              mkdir -p "$(dirname "$destination")"
+              cp -- "$file" "$destination"
+              total=$((total + size))
+              printf '%s bytes %s\n' "$size" "$relative" >> "$manifest"
+            done < "$candidates"
+          fi
+          printf 'Total selected payload: %s bytes\n' "$total" >> "$manifest"
+          exit "$status"
+      - name: Upload public Blender observations
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: blender-5.2.0-ubuntu-24.04-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/blendia-engine-upload
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          include-hidden-files: false

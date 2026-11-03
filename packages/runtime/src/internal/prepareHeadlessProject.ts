@@ -41,17 +41,21 @@ export function prepareHeadlessProject(
       throw new Error(
         "blendia: headless optional paths must be nonblank strings.",
       );
-  if (
-    options.args !== undefined &&
-    (!Array.isArray(options.args) ||
-      options.args.some(
-        (value: unknown): boolean =>
-          typeof value !== "string" || value.includes("\0"),
-      ))
-  )
-    throw new Error(
-      "blendia: headless script arguments must be strings without NUL.",
-    );
+  if (options.args !== undefined) {
+    if (!Array.isArray(options.args))
+      throw new Error(
+        "blendia: headless script arguments must be strings without NUL.",
+      );
+
+    // Read every index so sparse arrays cannot bypass admission.
+    for (let index: number = 0; index < options.args.length; index++) {
+      const value: unknown = options.args[index];
+      if (typeof value !== "string" || value.includes("\0"))
+        throw new Error(
+          "blendia: headless script arguments must be strings without NUL.",
+        );
+    }
+  }
   const startupTimeoutMs: number =
     options.startupTimeoutMs === undefined ? 120000 : options.startupTimeoutMs;
   const shutdownTimeoutMs: number =

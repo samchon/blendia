@@ -215,20 +215,54 @@ importers:
         specifier: catalog:typescript
         version: 7.0.2
 
-  test:
+  tests/test-blender:
+    dependencies:
+      '@blendia/runtime':
+        specifier: workspace:^
+        version: link:../../packages/runtime
+      '@blendia/sdk':
+        specifier: workspace:^
+        version: link:../../packages/sdk
+      '@nestia/e2e':
+        specifier: catalog:samchon
+        version: 12.1.0
+    devDependencies:
+      '@ttsc/evidence':
+        specifier: catalog:samchon
+        version: 0.35.0(@ttsc/lint@0.35.0(ttsc@0.35.0(typescript@7.0.2)))
+      '@ttsc/lint':
+        specifier: catalog:samchon
+        version: 0.35.0(ttsc@0.35.0(typescript@7.0.2))
+      '@types/node':
+        specifier: catalog:utils
+        version: 22.20.5
+      '@wrtnlabs/evidence':
+        specifier: catalog:samchon
+        version: 0.9.0(ttsc@0.35.0(typescript@7.0.2))
+      ttsc:
+        specifier: catalog:samchon
+        version: 0.35.0(typescript@7.0.2)
+      typescript:
+        specifier: catalog:typescript
+        version: 7.0.2
+
+  tests/test-units:
     dependencies:
       '@blendia/mcp':
         specifier: workspace:^
-        version: link:../packages/mcp
+        version: link:../../packages/mcp
+      '@blendia/runtime':
+        specifier: workspace:^
+        version: link:../../packages/runtime
       '@blendia/sdk':
         specifier: workspace:^
-        version: link:../packages/sdk
+        version: link:../../packages/sdk
       '@nestia/e2e':
         specifier: catalog:samchon
         version: 12.1.0
       blendia:
         specifier: workspace:^
-        version: link:../packages/cli
+        version: link:../../packages/cli
       typia:
         specifier: catalog:samchon
         version: 15.2.2(ttsc@0.35.0(typescript@7.0.2))

@@ -234,7 +234,7 @@ export class BlenderProtocol {
   /**
    * Validate and copy a nonempty partial local transform before transmission.
    *
-   * @evidence contracts/common.md#principled-implementation Every provided field must be an array of exactly three finite numbers within absolute 1e20; at least one supported field is required.
+   * @evidence contracts/common.md#principled-implementation Every provided field must have exactly three indexed finite numbers within absolute 1e20; missing array indices are rejected before copying and at least one supported field is required.
    * @evidence contracts/common.md#clear-and-simple-design Validation completes before the client's mutation request is constructed.
    * @evidence contracts/common.md#prohibited-implementation-shortcuts Unsupported extra fields cannot turn an empty update into an accepted mutation.
    * @evidence contracts/common.md#meaningful-documentation Translation and scale stay in local coordinates, and rotationEuler values stay XYZ radians without normalization.
@@ -250,13 +250,15 @@ export class BlenderProtocol {
       const vector: unknown = record[key];
       if (
         !this.vector(vector) ||
-        vector.some((entry: number): boolean => Math.abs(entry) > 1e20)
+        Math.abs(vector[0]) > 1e20 ||
+        Math.abs(vector[1]) > 1e20 ||
+        Math.abs(vector[2]) > 1e20
       )
         throw new BlenderError(
           "INVALID_ARGUMENT",
           "Transform components must be finite triples within absolute 1e20.",
         );
-      result[key] = [...vector];
+      result[key] = [vector[0], vector[1], vector[2]];
     }
     if (Object.keys(result).length === 0)
       throw new BlenderError(
@@ -280,15 +282,17 @@ export class BlenderProtocol {
     );
   }
 
-  /** Blender transform components are fixed finite triples. */
+  /** Check each fixed coordinate index so sparse arrays cannot skip finite-number admission. */
   private static vector(value: unknown): value is [number, number, number] {
     return (
       Array.isArray(value) &&
       value.length === 3 &&
-      value.every(
-        (entry: unknown): boolean =>
-          typeof entry === "number" && Number.isFinite(entry),
-      )
+      typeof value[0] === "number" &&
+      Number.isFinite(value[0]) &&
+      typeof value[1] === "number" &&
+      Number.isFinite(value[1]) &&
+      typeof value[2] === "number" &&
+      Number.isFinite(value[2])
     );
   }
 }

@@ -38,3 +38,4 @@ The current interfaces and their limitations are documented here:
 - [Scene authoring and outputs](docs/design/scene-render-save.md): creating a scene, rendering a PNG, and saving a `.blend` copy with explicit output ownership.
 - [Owned headless projects](docs/design/headless-projects.md): running one project script in a new background Blender with explicit executable and extension paths.
 - [Blender extension](blender/extension/README.md): establishing the live Blender connection.
+- [Observed environments and limits](docs/support.md): recorded Blender and agent-host workflows, plus first-use preparation limits.

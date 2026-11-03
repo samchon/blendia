@@ -8,17 +8,29 @@ Read `package.json`, `pnpm-workspace.yaml`, and the affected package manifest be
 | `pnpm run build` | Independently check compiled output in dependency order; local consumers do not require it. |
 | `pnpm run config:check` | Run `ttsc --noEmit` in `config` using its existing `tsconfig.json`. |
 | `pnpm run lint` | Run the additional lint diagnostics guard against each workspace's existing tsconfig. |
+| `pnpm run test` | Run the first-party unit alias, `test:units`. |
+| `pnpm run test:units` | Execute `@blendia/test-units` scenarios. |
+| `pnpm run test:blender` | Execute `@blendia/test-blender` against an actual configured engine. |
+| `pnpm run test:types` | Type-check both test modules with their existing tsconfigs. |
+| `pnpm run test:units:types` | Type-check the unit module only. |
+| `pnpm run test:blender:types` | Type-check the engine module only. |
 | `pnpm run format` | Apply shared Prettier formatting to owned TypeScript files. |
 | `pnpm run format:check` | Check formatting without editing. |
 | `pnpm run evidence` | Aggregate the separate Evidence checks without stopping at the first package failure. |
 
 Choose affected checks under the [validation guide](../development/validation.md), reusing the exact-head CI evidence it describes. This command inventory does not require repeating every aggregate locally.
 
-Read [testing](../development/testing.md) before proposing unit cases, and inspect the actual package scripts for implemented test commands. Tool checks alone do not establish product behavior, Blender installation, GUI, rendering, or extension behavior.
+Read [testing](../development/testing.md) before changing unit or actual engine scenarios, and inspect their package scripts for command details. Tool checks alone do not establish product behavior, Blender installation, GUI, rendering, or extension behavior.
 
-Follow the [local source contract](../development/SKILL.md#local-source-and-distribution) when running CLI, unit, type, and Evidence commands. Local CLI execution uses `ttsx`; the source-aware unit, type, and Evidence tools resolve workspace sources independently, preserving project context without a prebuild.
+Follow the [local source contract](../development/SKILL.md#local-source-and-distribution) when running CLI, unit, engine, type, and Evidence commands. Local CLI execution uses `ttsx`; the source-aware test, type, and Evidence tools resolve workspace sources independently, preserving project context without a prebuild.
 
 Shared compiler, lint, and formatting rules belong in `config`. Reuse the existing `tsconfig.json` with `ttsc --noEmit` for type checking rather than adding another check-only project. Put shared versions in workspace catalogs and use `workspace:^` for internal package dependencies. Declare dependency edges so recursive builds follow their graph. General helper scripts use TypeScript and `ttsx`; this does not change Blender's Python ownership.
+
+## Actual Blender tests
+
+The [unit module](../../../tests/test-units/UNIT_TESTS.md) runs without Blender. The [engine module](../../../tests/test-blender/TESTING.md) requires `BLENDIA_BLENDER_EXECUTABLE` and `BLENDIA_EXTENSION_SOURCE_DIRECTORY`; `BLENDIA_TEST_OUTPUT_DIRECTORY` optionally selects an existing output parent. Prepare the extension's ignored distribution license with `pnpm run extension:license` before the engine suite. The suite builds and installs the official extension ZIP into isolated Blender configuration, then executes real scenarios; it does not require a TypeScript package build.
+
+Use the engine guide for prerequisites, output retention, and public observations. The separate `blender.yml` workflow checks source and runs the pinned engine; its existence does not prove a successful run or GUI acceptance. Test-package Evidence belongs to each module's own configuration.
 
 ## Script execution and metadata
 
