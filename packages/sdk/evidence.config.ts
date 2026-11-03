@@ -5,13 +5,10 @@ export default {
   severity: "error",
   claims: [
     {
-      name: "client, connection, and feature validation",
+      name: "client and feature validation",
       type: "typescript",
       files: [
         "src/BlenderClient.ts",
-        "src/internal/BlenderConnection.ts",
-        "src/internal/BlenderFrameDecoder.ts",
-        "src/internal/BlenderProtocol.ts",
         "src/internal/BlenderSceneProtocol.ts",
         "src/internal/BlenderMaterialProtocol.ts",
         "src/internal/BlenderCameraProtocol.ts",
@@ -19,6 +16,22 @@ export default {
         "src/internal/BlenderArtifactProtocol.ts",
       ],
       symbol: "type",
+      reference: {
+        type: "markdown",
+        root: "../../.agents/skills",
+        files: ["contracts/common.md"],
+        symbol: "h2",
+      },
+    },
+    {
+      name: "connection, framing, and baseline protocol validation",
+      type: "typescript",
+      files: [
+        "src/internal/BlenderConnection.ts",
+        "src/internal/BlenderFrameDecoder.ts",
+        "src/internal/BlenderProtocol.ts",
+      ],
+      symbol: ["type", "function"],
       reference: {
         type: "markdown",
         root: "../../.agents/skills",
