@@ -18,6 +18,27 @@ function directoryIdentity(directory) {
   return identity;
 }
 
+/** Match the environment key that Node will actually pass to a Windows child. */
+function readChildEnvironment(environment, name) {
+  if (process.platform !== "win32") return environment[name];
+
+  // Node sorts and deduplicates keys before discarding undefined values.
+  // An undefined first alias therefore suppresses later spellings too.
+  const key = Object.keys(environment)
+    .sort()
+    .find((candidate) => candidate.toUpperCase() === name.toUpperCase());
+  return key === undefined ? undefined : environment[key];
+}
+
+function setTemporaryDirectory(environment, directory) {
+  if (process.platform === "win32")
+    for (const key of Object.keys(environment))
+      if (["TEMP", "TMP", "TMPDIR"].includes(key.toUpperCase()))
+        delete environment[key];
+
+  environment.TEMP = environment.TMP = environment.TMPDIR = directory;
+}
+
 /** Check the same physical parent/child boundary the compiler will enforce. */
 function checkParent(candidate, retainedDirectories) {
   let allocation;
@@ -59,8 +80,11 @@ function prepareNativeEnvironment(environment = process.env) {
   const retainedDirectories = [];
   const inherited =
     process.platform === "win32"
-      ? copied.TEMP || copied.TMP || os.tmpdir()
-      : copied.TMPDIR || copied.TMP || copied.TEMP || os.tmpdir();
+      ? readChildEnvironment(copied, "TEMP") ||
+        readChildEnvironment(copied, "TMP") ||
+        (readChildEnvironment(copied, "SystemRoot") ||
+          readChildEnvironment(copied, "windir")) + "\\temp"
+      : copied.TMPDIR || copied.TMP || copied.TEMP || "/tmp";
   if (checkParent(inherited, retainedDirectories) !== undefined)
     return { environment: copied, retainedDirectories };
 
@@ -72,7 +96,7 @@ function prepareNativeEnvironment(environment = process.env) {
           fallbackDirectory
       )
         throw new Error("blendia: retained native scratch identity changed.");
-      copied.TEMP = copied.TMP = copied.TMPDIR = fallbackDirectory;
+      setTemporaryDirectory(copied, fallbackDirectory);
       return {
         environment: copied,
         directory: fallbackDirectory,
@@ -109,7 +133,7 @@ function prepareNativeEnvironment(environment = process.env) {
 
     fallbackDirectory = physical;
     fallbackIdentity = identity;
-    copied.TEMP = copied.TMP = copied.TMPDIR = physical;
+    setTemporaryDirectory(copied, physical);
     return { environment: copied, directory: physical, retainedDirectories };
   } catch (error) {
     if (allocated !== undefined) retainedDirectories.push(allocated);
