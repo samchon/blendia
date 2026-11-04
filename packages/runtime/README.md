@@ -26,7 +26,7 @@ void main().catch((error: unknown): void => {
 
 `IProjectScriptOptions` specifies `entry`, optional `cwd`, optional `project`, optional `args`, and optional `connection`. Relative entry and explicit tsconfig paths use `cwd`; omitted cwd uses the calling process's working directory. Omitted project delegates configuration discovery to `ttsx`. Arguments are forwarded verbatim to the script, without consuming a separator in this programmatic API.
 
-The consuming project needs its native TypeScript compiler, imported npm packages, and any compiler plugins named in its tsconfig. Install the compiler there with `npm install --save-dev typescript`, with optional dependencies enabled. The launcher supplies `ttsx`; it does not build packages before local execution or invent a replacement project configuration.
+Use the [external-project setup](../../docs/design/script-jobs.md#set-up-an-external-source-checkout-project) for the consuming project's compiler, source SDK link and imported packages, retaining any compiler plugins named in its tsconfig. The launcher supplies public `ttsx`; it does not build packages before local execution or invent a replacement project configuration.
 
 `runTextMacro` accepts `ITextMacroOptions`: a `text` snapshot, explicit `cwd`, a logical `sourcePath`, and optional `origin`, `project`, `args`, and `connection`. `ITextMacroContext` represents those same project and origin fields before a snapshot is read. Text is limited to `TEXT_MACRO_MAX_BYTES` (256 KiB of UTF-8). The source must be a non-declaration `.ts`, `.tsx`, `.mts`, or `.cts` path within the project and have an existing writable parent directory. An unsaved source path is allowed; an existing file is never overwritten.
 

@@ -11,7 +11,7 @@ pnpm blendia run --cwd /path/to/project --project tsconfig.json src/model.ts -- 
 
 This route prepares the native temporary environment before the unchanged public `ttsx` initializes. Healthy caller settings are preserved; an unsafe effective temporary location receives verified process-owned storage automatically. No repeated manual TEMP setup is required. Direct Node integrations can use the shipped public `blendia/native-bootstrap` preload as described in the [startup guide](../../docs/design/native-startup.md#supported-launch-paths).
 
-The script's project must provide its native TypeScript compiler, SDK, imported npm packages, and any plugins named in its tsconfig. Install the compiler there with `npm install --save-dev typescript`, with optional dependencies enabled. The launcher does not install dependencies or rewrite package resolution.
+Prepare the project's compiler, local SDK link and imported packages with the [external-project setup](../../docs/design/script-jobs.md#set-up-an-external-source-checkout-project), retaining any plugins named in its tsconfig. The launcher preserves that project context; it does not install dependencies or rewrite package resolution.
 
 ```text
 blendia run [--jsonl] [--cwd <dir>] [--project <tsconfig>] <entry> [-- <script args...>]

@@ -34,7 +34,7 @@ Select Stop Blendia to revoke the token, close connections, and remove this sess
 
 ## Run TypeScript from Blender
 
-Install the Blendia CLI and your project's SDK/npm dependencies. The project needs the native TypeScript compiler, installed with `npm install --save-dev typescript` with optional dependencies enabled. Blendia supplies `ttsx`. Project scripts run through Node.js and call the SDK's supported Blender operations.
+Prepare the source checkout and your project's compiler, local SDK link and imports with the [external-project setup](../../docs/design/script-jobs.md#set-up-an-external-source-checkout-project). Blendia supplies public `ttsx`; project scripts run through Node.js and call the SDK's supported Blender operations.
 
 Open the TypeScript Macros panel in the viewport's Blendia sidebar. Set Project Directory to an absolute project path and Node Executable to an absolute Node executable. For a local checkout, set CLI Entry to `packages/cli/src/bin.ts` and ttsc package.json to the installed `ttsc/package.json`, both as absolute paths. The extension resolves that package's public `ttsx` launcher and runs the CLI source without a build. The selected CLI package must also contain its shipped `nativeBootstrap.cjs` beside the `src` or `lib` directory; Node loads that environment shim before the source launcher or package's JavaScript entry. It preserves healthy temporary settings and prepares verified owned storage automatically, with no new panel field or manual TEMP setup. Select real files rather than shell wrappers; do not use Blender-relative `//` paths for these tool and directory settings. See the [startup guide](../../docs/design/native-startup.md#supported-launch-paths) for retained scratch and observation limits.
 
