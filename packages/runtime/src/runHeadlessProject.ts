@@ -13,6 +13,7 @@ import type { IScriptProcessResult } from "./internal/IScriptProcessResult";
 import { ScriptLog } from "./internal/ScriptLog";
 import { ScriptProcess } from "./internal/ScriptProcess";
 import { collectHeadlessLogs } from "./internal/collectHeadlessLogs";
+import { prepareConnectionEnvironment } from "./internal/prepareConnectionEnvironment";
 import { prepareHeadlessProject } from "./internal/prepareHeadlessProject";
 
 /**
@@ -52,11 +53,13 @@ export async function runHeadlessProject(
     result.retainedDirectory = workspace.directory;
     workspace.writeConfig(prepared.startupTimeoutMs);
     blenderLog = new ScriptLog(workspace.token);
-    const env: NodeJS.ProcessEnv = { ...process.env };
 
     // An existing GUI credential must never select or leak into this new owned bridge.
-    delete env.BLENDIA_PORT;
-    delete env.BLENDIA_TOKEN;
+    const env: NodeJS.ProcessEnv = prepareConnectionEnvironment(
+      process.env,
+      undefined,
+      true,
+    );
     const args: string[] = [
       "--background",
       "--factory-startup",
