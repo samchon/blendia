@@ -185,10 +185,14 @@ export function test_native_environment(): void {
     }
     assert.equal(JSON.stringify(process.env) === inheritedBefore, true);
     assert.equal(process.cwd(), cwdBefore);
-    assert.deepEqual(fs.readdirSync(directory).sort(), [
-      "project-a",
-      "project-b",
-    ]);
+    assert.deepEqual(
+      fs
+        .readdirSync(directory)
+        .sort((left: string, right: string): number =>
+          left.localeCompare(right),
+        ),
+      ["project-a", "project-b"],
+    );
   } catch (error) {
     failures.push(error);
   }
