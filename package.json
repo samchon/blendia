@@ -8,8 +8,8 @@
     "node": ">=22.23.2 <23"
   },
   "scripts": {
-    "blendia": "ttsx packages/cli/src/bin.ts",
-    "extension:license": "ttsx config/prepareExtensionLicense.ts",
+    "blendia": "node --require ./config/nativeBootstrap.cjs ./node_modules/ttsc/lib/launcher/ttsx.js packages/cli/src/bin.ts",
+    "extension:license": "node --require ./config/nativeBootstrap.cjs ./node_modules/ttsc/lib/launcher/ttsx.js config/prepareExtensionLicense.ts",
     "build": "pnpm --filter=./packages/** -r build",
     "config:check": "pnpm --filter @blendia/config build",
     "lint": "pnpm --filter=./config --filter=./packages/** --filter=./tests/** --no-bail -r lint",
@@ -19,8 +19,8 @@
     "test:types": "pnpm --filter=./tests/** --no-bail -r build",
     "test:units:types": "pnpm --filter @blendia/test-units build",
     "test:blender:types": "pnpm --filter @blendia/test-blender build",
-    "format": "prettier --write \"**/*.{ts,cts,mts}\"",
-    "format:check": "prettier --check \"**/*.{ts,cts,mts}\"",
+    "format": "prettier --write \"**/*.{ts,cts,mts,cjs}\"",
+    "format:check": "prettier --check \"**/*.{ts,cts,mts,cjs}\"",
     "evidence": "pnpm --filter=./packages/** --filter=./tests/** --no-bail --no-sort -r --if-present evidence"
   },
   "author": "Samchon",

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
+import { prepareNativeEnvironment } from "../../native/prepareNativeEnvironment.cjs";
 import type { IProjectScriptOptions } from "../IProjectScriptOptions";
 import type { IPreparedProjectLaunch } from "./IPreparedProjectLaunch";
 
@@ -32,7 +33,8 @@ export function prepareProjectLaunch(
   ];
   if (options.project !== undefined) args.push("--project", options.project);
   args.push(path.resolve(cwd, options.entry), ...(options.args ?? []));
-  const env: NodeJS.ProcessEnv = { ...environment };
+  const env: NodeJS.ProcessEnv =
+    prepareNativeEnvironment(environment).environment;
   if (options.connection?.port !== undefined)
     env.BLENDIA_PORT = String(options.connection.port);
   if (options.connection?.token !== undefined)

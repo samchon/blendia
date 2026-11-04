@@ -9,10 +9,10 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "rimraf lib && ttsc",
+    "build": "rimraf lib && node --require ../../config/nativeBootstrap.cjs ../../node_modules/ttsc/lib/launcher/ttsc.js",
     "prepack": "pnpm run build",
-    "lint": "ttsx ../../config/checkLint.ts",
-    "evidence": "evidence"
+    "lint": "node --require ../../config/nativeBootstrap.cjs ../../node_modules/ttsc/lib/launcher/ttsx.js ../../config/checkLint.ts",
+    "evidence": "node --require ../../config/nativeBootstrap.cjs ../../node_modules/@wrtnlabs/evidence/lib/executable/evidence.js"
   },
   "author": "Samchon",
   "license": "MIT",

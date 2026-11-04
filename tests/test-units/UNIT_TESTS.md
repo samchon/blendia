@@ -1,5 +1,7 @@
 # First-party unit verification
 
+The native-environment case calls the real production selector and project-launch preparation through internal source seams against uniquely owned physical directories. It verifies that complete coherent absolute settings remain verbatim, missing or conflicting secondary settings align to the healthy primary, and cwd-dependent primary paths use retained physical storage that two distinct project working directories resolve identically. On Windows it checks actual mixed-case aliases, lexical first-key priority, undefined alias suppression and drive-dependent paths; on POSIX it checks relative paths and unrelated lowercase names. It launches no compiler or child, changes no global cwd or environment, and does not simulate MSIX redirection. Cleanup touches only unchanged empty directories allocated by the case, preserves unexpected children or changed identities, never removes automatic fallback storage, and retains assertion and cleanup failures independently.
+
 Run `pnpm test` from the repository root, or `pnpm --filter @blendia/test-units start`, to execute every named case. Run `pnpm --filter @blendia/test-units build` separately for ordinary `ttsc --noEmit` diagnostics, `pnpm --filter @blendia/test-units lint` for configured declaration and correctness diagnostics, and `pnpm --filter @blendia/test-units evidence` for its behavioral checklist. These commands execute workspace sources without a preparatory product build.
 
 The DynamicExecutor entry discovers named cases under src/features, reports every failure, rejects an empty suite, and leaves a failing process status when any case fails. There is no case-selection grammar or synthetic runner test.
@@ -13,6 +15,7 @@ The DynamicExecutor entry discovers named cases under src/features, reports ever
 | test_render_artifacts | Caller-owned UUIDs, native-job variants, PNG provenance metadata, canonical base64 windows, exact offsets, progress, EOF, and byte bounds. |
 | test_script_logs | Incremental UTF-8, split-token redaction, stream tags, paging, retention gaps, immutable reads, and invalid cursor/budget refusals. |
 | test_script_job_state | Monotonic phases, terminal ownership, ordinary versus bootstrap/uncertain outcomes, copied snapshots, and bounded credential-free metadata. |
+| test_native_environment | Coherent absolute temporary settings, Node/Go selector alignment, actual platform aliases, physical storage across two project cwd values, caller/process nonmutation, and owned empty-directory cleanup. |
 | test_bridge_envelopes | Decimal correlation IDs, exclusive success/failure arms, optional pre-authentication identity, and explicit effects. |
 | test_bridge_handshake | Protocol mismatch, safe generation, copied capabilities, and malformed session metadata. |
 | test_object_identity | Full-width object IDs, fresh snapshot identity, detached local vectors, and malformed native metadata. |

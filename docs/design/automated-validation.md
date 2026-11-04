@@ -6,14 +6,14 @@ Tracking: [validation #6](https://github.com/samchon/blendia/issues/6) and [PR #
 
 | Workspace | Execute from repository root | Scope |
 | --- | --- | --- |
-| `tests/test-units` / `@blendia/test-units` | `pnpm test:units` or `pnpm test` | Eighteen named first-party cases, with no Blender, sockets, or child processes |
+| `tests/test-units` / `@blendia/test-units` | `pnpm test:units` or `pnpm test` | Nineteen named first-party cases, with no Blender, sockets, or child processes |
 | `tests/test-blender` / `@blendia/test-blender` | `pnpm test:blender` | Six sequential actual-engine behavior groups after native ZIP installation verification |
 
-Both modules run `ttsx src/index.ts` directly from source. `pnpm test:types` checks both existing test tsconfigs through ordinary `ttsc --noEmit`; `test:units:types` and `test:blender:types` select one. `pnpm lint`, `pnpm run format:check`, and `pnpm run evidence` have their separate development roles. No product build, compiled fallback, or extra checking tsconfig is a prerequisite. See [conventions](../conventions.md#compiler-exports-and-commands) for the complete workspace command contract.
+Both modules run `src/index.ts` through public `ttsx` after the [pre-native environment step](native-startup.md#supported-launch-paths). `pnpm test:types` checks both existing test tsconfigs through ordinary `ttsc --noEmit`; `test:units:types` and `test:blender:types` select one. `pnpm lint`, `pnpm run format:check`, and `pnpm run evidence` have their separate development roles. No product build, compiled fallback, or extra checking tsconfig is a prerequisite. See [conventions](../conventions.md#compiler-exports-and-commands) for the complete workspace command contract.
 
 ## First-party units
 
-The [unit inventory](../../tests/test-units/UNIT_TESTS.md) preserves the existing nine cases, including two MCP-owned logic cases, and adds nine prepared SDK cases for eighteen named cases. They exercise actual CLI argument ownership, SDK framing/admission/response validation, runtime state/logs, native-image delivery policy, and MCP scene representation. The MCP cases observe first-party logic; they do not test generated schemas, upstream typia, protocol integration, or host image consumption.
+The [unit inventory](../../tests/test-units/UNIT_TESTS.md) preserves the prior eighteen cases, including two MCP-owned logic cases and nine added SDK cases, and adds the actual native-environment policy case for nineteen named cases. They exercise CLI argument ownership, SDK framing/admission/response validation, runtime state/logs, native-image delivery policy, MCP scene representation, and healthy temporary-parent/environment-copy/check-allocation ownership using real filesystem operations. That last case does not certify unsafe redirected-host fallback or compiler execution. The MCP cases observe first-party logic; they do not test generated schemas, upstream typia, protocol integration, or host image consumption. Counts describe authored scope; new outcomes remain in the tracker.
 
 SDK sparse-array/finite-value admission and runtime headless sparse string-array admission are separate production boundaries in the same indexed-validation family. Their regressions require malformed inputs to fail before transmission or prerequisite filesystem access. Array length and checks that skip missing indices are insufficient. These cases preserve real numeric/string admission and detached ownership rather than inventing test-only APIs or artificial child processes.
 

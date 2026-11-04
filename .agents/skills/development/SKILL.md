@@ -19,11 +19,17 @@ Shared `config` owns strict compiler settings, correctness lint through `@ttsc/l
 
 ## Local source and distribution
 
-Local development uses TypeScript sources without a build. Preserve this invariant in every package, resolver, launcher, and CI change. Following AutoMovie, package `main` is `src/index.ts`, local `exports["."]` points to `./src/index.ts`, and there is no local `types` field. Local CLI execution uses `ttsx`, with package `start` running `ttsx src/bin.ts`. Local execution, first-party unit and actual Blender tests, test type checking, and Evidence must not require `lib` output or a preceding TypeScript build.
+Local development uses TypeScript sources without a build. Preserve this invariant in every package, resolver, launcher, and CI change. Following AutoMovie, package `main` is `src/index.ts`, local `exports["."]` points to `./src/index.ts`, and there is no local `types` field. Local CLI execution uses the public `ttsx` launcher with the pre-native environment preparation below; package `start` still executes `src/bin.ts`. Local execution, first-party unit and actual Blender tests, test type checking, and Evidence must not require `lib` output or a preceding TypeScript build.
 
 Keep distribution metadata separate in `publishConfig`: `main` points to `lib/index.js`, `types` to `lib/index.d.ts`, and the published root export has built `types` and `default` entries. The CLI's `lib/bin.js` bin is a distribution entry, not the local execution path. Compilation remains an independent output-validation or distribution step. Do not add custom conditions, extra checking projects, or compiled fallbacks to compensate for broken source resolution.
 
 The repository-root `LICENSE` is the sole maintained product license. Create package copies only as distribution artifacts, ignore them in Git, and never commit those copies.
+
+## Pre-native environment
+
+The compiler-independent [CJS bootstrap](../../../packages/runtime/native/bootstrap.cjs) runs through Node's public `--require` before the unchanged public `ttsc` or `ttsx` launcher. A TypeScript helper would initialize too late to prepare that launcher's native environment. This exception is limited to pre-native environment preparation; product TypeScript, normal plugin discovery, and the explicit lint guard keep their existing execution model.
+
+The [environment producer](../../../packages/runtime/native/prepareNativeEnvironment.cjs) preserves healthy caller temporary settings and returns a copied environment. When the effective inherited temporary location fails its physical allocation check, it supplies a verified, newly allocated process-owned scratch location through process-local `TEMP`, `TMP`, and `TMPDIR`. Preserve cwd, script arguments, and inherited or explicitly captured stdio. Do not turn this preparation into global environment, cache, or security changes. Retain uncertain allocations and scratch that may still belong to descendants rather than claiming cleanup ownership.
 
 ## Changes and verification
 

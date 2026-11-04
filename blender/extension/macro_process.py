@@ -212,7 +212,10 @@ class MacroLauncher:
         cwd = self.absolute_file(settings.project_root, "Project directory", directory=True)
         node = self.absolute_file(settings.node_executable, "Node executable")
         cli = self.absolute_file(settings.cli_entry, "CLI entry")
-        prefix = [str(node)]
+        bootstrap = cli.parent.parent / "nativeBootstrap.cjs"
+        if not bootstrap.is_file():
+            raise ValueError("CLI package must include its nativeBootstrap.cjs preload")
+        prefix = [str(node), "--require", str(bootstrap)]
         if cli.suffix.lower() in {".ts", ".tsx", ".mts", ".cts"}:
             metadata_path = self.absolute_file(settings.ttsc_package, "ttsc package.json")
             if metadata_path.stat().st_size > 65536:

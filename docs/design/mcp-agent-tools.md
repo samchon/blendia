@@ -10,12 +10,14 @@ This guide describes the source contract merged in [PR #16](https://github.com/s
 
 Install repository dependencies and enable the [Blender extension](../../blender/extension/README.md). Supply the bridge port and token privately to the server process as `BLENDIA_PORT` and `BLENDIA_TOKEN`; do not put credentials in prompts or tool arguments. The server snapshots this configuration at creation. `connect` explicitly opens the configured live connection; it does not discover a replacement or retry a mutation.
 
-Configure your host's stdio command with an explicit Node executable, the installed `ttsc` package's public `bin.ttsx` target, and the absolute MCP source entry. For the repository's installed layout, the command fields below illustrate the values; replace paths and supply credentials through the host's private environment mechanism. This is a configuration template, not a claimed executed host session.
+Configure your host's stdio command with an explicit Node executable, Node's `--require` pointing to the shipped MCP environment shim, the installed `ttsc` package's public `bin.ttsx` target, and the absolute MCP source entry. Absolute paths preserve this route even outside the checkout cwd. Replace the template paths and supply credentials through the host's private environment mechanism; this example is not a claimed completed host session with the new environment correction.
 
 ```json
 {
   "command": "C:/path/to/node.exe",
   "args": [
+    "--require",
+    "D:/path/to/blendia/packages/mcp/nativeBootstrap.cjs",
     "D:/path/to/blendia/node_modules/ttsc/lib/launcher/ttsx.js",
     "-P",
     "D:/path/to/blendia/packages/mcp/tsconfig.json",
@@ -24,7 +26,7 @@ Configure your host's stdio command with an explicit Node executable, the instal
 }
 ```
 
-The launcher path comes from the installed package's public bin metadata; it is not a private API import or compiled Blendia fallback. `pnpm --filter @blendia/mcp start` is a local convenience command, but a host's protocol command should use the direct invocation above so package-manager banners cannot enter stdout. The [stdio entry](../../packages/mcp/src/bin.ts) reserves stdout for JSON-RPC and sends generic startup/protocol diagnostics to stderr. It bounds incoming transport data at 4 MiB. Child project output is captured rather than forwarded into either protocol stream.
+The launcher path comes from installed public bin metadata, and the shim is the public `@blendia/mcp/native-bootstrap` export. Node loads it before `ttsx` so the [native environment](native-startup.md#supported-launch-paths) is ready for first initialization; the shim writes no stdout/stderr and requires no manual TEMP assignment. `pnpm --filter @blendia/mcp start` remains a local convenience command, but a host should use the direct invocation above so package-manager banners cannot enter stdout. The [stdio entry](../../packages/mcp/src/bin.ts) reserves stdout for JSON-RPC and sends generic startup/protocol diagnostics to stderr. It bounds incoming transport data at 4 MiB. Child project output is captured rather than forwarded into either protocol stream.
 
 First-use native compiler/plugin preparation can require network access, Go tooling, and a cold cache, and can take substantially longer than a warm launch. The [first-run guide](script-jobs.md#first-run-preparation) explains the prerequisites. A host's startup/initialization timeout, a tool-call timeout, an SDK request observation timeout, and owned Blender startup/shutdown deadlines are separate. Increasing one does not extend all the others or create cancellation. Metadata `doctor` results do not prove native plugin preparation or execution readiness.
 

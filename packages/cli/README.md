@@ -2,12 +2,14 @@
 
 Execute an existing project TypeScript script through the shared `@blendia/runtime` launcher. Blender modeling operations are performed by the SDK imported by that script, against a running Blendia extension. This package does not start a second Blender engine or automatically acquire an SDK connection.
 
-The CLI is not yet published to npm. Run it directly from this checkout through `ttsx`, without building first:
+The CLI is not yet published to npm. From the checkout root, run its source through the supported command without building first:
 
 ```sh
-pnpm exec ttsx packages/cli/src/bin.ts --help
-pnpm exec ttsx packages/cli/src/bin.ts run --cwd /path/to/project --project tsconfig.json src/model.ts -- --name Cube
+pnpm blendia --help
+pnpm blendia run --cwd /path/to/project --project tsconfig.json src/model.ts -- --name Cube
 ```
+
+This route prepares the native temporary environment before the unchanged public `ttsx` initializes. Healthy caller settings are preserved; an unsafe effective temporary location receives verified process-owned storage automatically. No repeated manual TEMP setup is required. Direct Node integrations can use the shipped public `blendia/native-bootstrap` preload as described in the [startup guide](../../docs/design/native-startup.md#supported-launch-paths).
 
 The script's project must provide its native TypeScript compiler, SDK, imported npm packages, and any plugins named in its tsconfig. Install the compiler there with `npm install --save-dev typescript`, with optional dependencies enabled. The launcher does not install dependencies or rewrite package resolution.
 

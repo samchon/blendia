@@ -9,13 +9,14 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./native-bootstrap": "./nativeBootstrap.cjs",
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "rimraf lib && ttsc",
-    "start": "ttsx src/bin.ts",
+    "build": "rimraf lib && node --require ../../config/nativeBootstrap.cjs ../../node_modules/ttsc/lib/launcher/ttsc.js",
+    "start": "node --require ./nativeBootstrap.cjs ../../node_modules/ttsc/lib/launcher/ttsx.js src/bin.ts",
     "prepack": "pnpm run build",
-    "lint": "ttsx ../../config/checkLint.ts"
+    "lint": "node --require ../../config/nativeBootstrap.cjs ../../node_modules/ttsc/lib/launcher/ttsx.js ../../config/checkLint.ts"
   },
   "author": "Samchon",
   "license": "MIT",
@@ -27,6 +28,7 @@
   "files": [
     "lib",
     "src",
+    "nativeBootstrap.cjs",
     "README.md",
     "LICENSE"
   ],
@@ -42,6 +44,7 @@
         "types": "./lib/index.d.ts",
         "default": "./lib/index.js"
       },
+      "./native-bootstrap": "./nativeBootstrap.cjs",
       "./package.json": "./package.json"
     }
   },
