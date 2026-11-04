@@ -4,14 +4,15 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import type { BlendiaMcpImageDelivery } from "./BlendiaMcpImageDelivery";
+import type { IBlendiaMcpFailure } from "./IBlendiaMcpFailure";
 
 /**
- * Add one private PNG to its original response without changing public metadata.
+ * Add one private PNG to its original response, or report unavailable delivery explicitly.
  *
- * @evidence contracts/common.md#principled-implementation Only a successful metadata image envelope can consume its one-time ticket with the original JSON-RPC response ID; the generated structuredContent remains untouched and contains no image bytes.
- * @evidence contracts/common.md#clear-and-simple-design The controller owns typed metadata and the private delivery owner supplies native bytes; this boundary only composes the public MCP image block.
+ * @evidence contracts/common.md#principled-implementation Only a successful metadata image envelope can consume its one-time ticket with the original JSON-RPC response ID; successful structuredContent remains unchanged, while unavailable private bytes produce an explicit typed failure without image content.
+ * @evidence contracts/common.md#clear-and-simple-design The controller owns typed metadata and the private delivery owner supplies native bytes; this boundary composes the public MCP image block or the existing failure envelope.
  * @evidence contracts/common.md#prohibited-implementation-shortcuts No typia runtime transform call, schema-field deletion, JSON base64 duplication, arbitrary file read, or private SDK hook participates in presentation.
- * @evidence contracts/common.md#meaningful-documentation The function distinguishes declared metadata from the private one-time native payload and preserves unrelated protocol messages and errors.
+ * @evidence contracts/common.md#meaningful-documentation The function distinguishes declared metadata from the private one-time native payload, reports missing delivery without retry, and preserves unrelated protocol messages and errors.
  * @evidence contracts/performance.md#efficient-algorithms Metadata guards and bounded delivery lookup avoid decoding an image again; the content array is copied once while the existing base64 string is reused only by native content.
  * @evidence contracts/performance.md#bound-retention-and-release-resources A matched delivery is removed before send; this function retains no cache or retry copy, and unmatched or expired tickets supply no bytes.
  */
@@ -47,7 +48,28 @@ export function addMcpNativeImage(
     metadata,
     message.id,
   );
-  if (image === undefined) return message;
+  if (image === undefined) {
+    const failure: IBlendiaMcpFailure = {
+      ok: false,
+      result: null,
+      error: {
+        code: "IMAGE_DELIVERY_UNAVAILABLE",
+        message: "Native image delivery is unavailable.",
+        effects: "none",
+      },
+    };
+
+    // Retirement must not leave a successful image result without its native payload.
+    return {
+      ...message,
+      result: {
+        ...message.result,
+        isError: true,
+        structuredContent: failure,
+        content: [{ type: "text", text: failure.error.message }],
+      },
+    };
+  }
 
   const content: unknown[] = Array.isArray(message.result.content)
     ? message.result.content

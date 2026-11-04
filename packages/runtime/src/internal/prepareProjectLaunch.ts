@@ -5,6 +5,7 @@ import process from "node:process";
 import { prepareNativeEnvironment } from "../../native/prepareNativeEnvironment.cjs";
 import type { IProjectScriptOptions } from "../IProjectScriptOptions";
 import type { IPreparedProjectLaunch } from "./IPreparedProjectLaunch";
+import { prepareConnectionEnvironment } from "./prepareConnectionEnvironment";
 
 /** Resolve the installed public ttsx bin and preserve the caller's source/cwd/arguments. */
 export function prepareProjectLaunch(
@@ -33,11 +34,8 @@ export function prepareProjectLaunch(
   ];
   if (options.project !== undefined) args.push("--project", options.project);
   args.push(path.resolve(cwd, options.entry), ...(options.args ?? []));
-  const env: NodeJS.ProcessEnv =
-    prepareNativeEnvironment(environment).environment;
-  if (options.connection?.port !== undefined)
-    env.BLENDIA_PORT = String(options.connection.port);
-  if (options.connection?.token !== undefined)
-    env.BLENDIA_TOKEN = options.connection.token;
+  const env: NodeJS.ProcessEnv = prepareNativeEnvironment(
+    prepareConnectionEnvironment(environment, options.connection),
+  ).environment;
   return { executable: process.execPath, args, cwd, env };
 }

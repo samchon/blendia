@@ -7,6 +7,7 @@ import type { IScriptLogPage } from "./IScriptLogPage";
 import type { IScriptExecutionResult } from "./internal/IScriptExecutionResult";
 import { ScriptJobState } from "./internal/ScriptJobState";
 import { ScriptLog } from "./internal/ScriptLog";
+import { prepareConnectionEnvironment } from "./internal/prepareConnectionEnvironment";
 import { runScriptExecution } from "./internal/runScriptExecution";
 
 /**
@@ -35,9 +36,11 @@ export class ScriptJob {
     request: IScriptJobRequest,
     observationSignal?: AbortSignal,
   ) {
-    const environment: NodeJS.ProcessEnv = { ...process.env };
-    const token: string =
-      request.options.connection?.token ?? environment.BLENDIA_TOKEN ?? "";
+    const environment: NodeJS.ProcessEnv = prepareConnectionEnvironment(
+      process.env,
+      request.options.connection,
+    );
+    const token: string = environment.BLENDIA_TOKEN ?? "";
     this.log = new ScriptLog(token);
     this.state = new ScriptJobState(this.id, ScriptJob.ownerId, token);
 

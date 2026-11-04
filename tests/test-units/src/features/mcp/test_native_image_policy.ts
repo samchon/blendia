@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { BlendiaMcpImageDelivery } from "../../../../../packages/mcp/src/BlendiaMcpImageDelivery";
+import type { IBlendiaMcpFailure } from "../../../../../packages/mcp/src/IBlendiaMcpFailure";
 import type { IBlendiaMcpImagePayload } from "../../../../../packages/mcp/src/IBlendiaMcpImagePayload";
 import type { IBlendiaMcpImageResult } from "../../../../../packages/mcp/src/IBlendiaMcpImageResult";
 import type { IBlendiaMcpSuccess } from "../../../../../packages/mcp/src/IBlendiaMcpSuccess";
@@ -12,16 +13,26 @@ import { addMcpNativeImage } from "../../../../../packages/mcp/src/addMcpNativeI
  * Scenarios:
  * 1. Public JSON contains metadata only while one native block receives the private bytes.
  * 2. Wrong response identities and altered metadata cannot consume a pending delivery.
- * 3. Errors, malformed envelopes, and replayed tickets add no native content.
+ * 3. Errors and malformed envelopes remain unchanged; replayed image tickets report unavailable delivery.
  * 4. Canonical byte admission, exact caps, capacity refusal, and explicit cleanup preserve ownership.
+ * 5. Artifact release, session replacement, and close report failure instead of successful metadata without an image.
  *
- * @evidence contracts/testing.md#behavioral-verification Invoke the actual private delivery owner and outbound converter consumed by the controller and Transport.send; observe metadata-only output, correlated one-time consumption, refusal without eviction, and explicit release without constructing a server or transport.
- * @evidence contracts/testing.md#independent-expectations Literal one/two/three-byte base64, the declared one-MiB raw cap and four-delivery capacity determine admission independently; exact response identity and unchanged artifact fields determine delivery ownership, not a snapshot or generated schema.
- * @evidence contracts/testing.md#distinguishing-cases Cover matching versus altered metadata and numeric/string request IDs, success/error/malformed messages, one-time replay, canonical and noncanonical encodings, exact/exceeded caps, full capacity, artifact/session cleanup, and closed admission; PNG decoding, expiry timing, host presentation, and registration remain outside this unit.
+ * @evidence contracts/testing.md#behavioral-verification Invoke the actual private delivery owner and outbound converter consumed by the controller and Transport.send; observe metadata-only output, correlated one-time consumption, refusal without eviction, and explicit unavailable failures after release, replacement, close, and replay without constructing a server or transport.
+ * @evidence contracts/testing.md#independent-expectations Literal one/two/three-byte base64, the declared one-MiB raw cap and four-delivery capacity determine admission independently; exact response identity and unchanged artifact fields determine delivery ownership. A successful image result requires native bytes, while unavailable delivery must publish a typed failure with no private bytes or partial successful metadata.
+ * @evidence contracts/testing.md#distinguishing-cases Cover matching versus altered metadata and numeric/string request IDs, unchanged nonimage/error/malformed messages, one-time replay, canonical and noncanonical encodings, exact/exceeded caps, full capacity, artifact/session cleanup, closed admission, failure correlation and input immutability; PNG decoding, expiry timing, host presentation, and registration remain outside this unit.
  * @evidence contracts/testing.md#execution-ownership DynamicExecutor discovers this named first-party payload-policy unit; it consumes production functions directly without fake handlers, SDK clients, transports, sockets, filesystem fixtures, typia tests, schema reflection, or an MCP E2E harness.
  */
 export function test_native_image_policy(): void {
   const delivery: BlendiaMcpImageDelivery = new BlendiaMcpImageDelivery();
+  const failure: IBlendiaMcpFailure = {
+    ok: false,
+    result: null,
+    error: {
+      code: "IMAGE_DELIVERY_UNAVAILABLE",
+      message: "Native image delivery is unavailable.",
+      effects: "none",
+    },
+  };
   const payload: IBlendiaMcpImagePayload = {
     mimeType: "image/png",
     dataBase64: "AQID",
@@ -73,9 +84,10 @@ export function test_native_image_policy(): void {
       ...message,
       id: "17",
     };
-    assert.equal(addMcpNativeImage(wrongResponse, delivery), wrongResponse);
+    const refusedMessages: Parameters<typeof addMcpNativeImage>[0][] = [
+      wrongResponse,
+    ];
     const altered: readonly unknown[] = [
-      { ...metadata, kind: "render" },
       { ...metadata, mimeType: "image/jpeg" },
       { ...metadata, deliveryId: "unknown-ticket" },
       { ...metadata, artifact: { ...metadata.artifact, bytes: 2 } },
@@ -96,10 +108,38 @@ export function test_native_image_policy(): void {
           structuredContent: { ok: true, result: candidate, error: null },
         },
       };
-      assert.equal(addMcpNativeImage(refused, delivery), refused);
+      refusedMessages.push(refused);
+    }
+    for (const input of refusedMessages) {
+      const before: string = JSON.stringify(input);
+      const refused: ReturnType<typeof addMcpNativeImage> = addMcpNativeImage(
+        input,
+        delivery,
+      );
+      assert.ok("result" in refused && "result" in input);
+      assert.equal(refused.id, input.id);
+      assert.equal(refused.result.isError, true);
+      assert.deepEqual(refused.result.structuredContent, failure);
+      assert.deepEqual(refused.result.content, [
+        { type: "text", text: failure.error.message },
+      ]);
+      assert.deepEqual(refused.result._meta, input.result._meta);
+      assert.equal(JSON.stringify(refused).includes(payload.dataBase64), false);
+      assert.equal(JSON.stringify(input), before);
     }
 
     const ordinary: readonly Parameters<typeof addMcpNativeImage>[0][] = [
+      {
+        jsonrpc: "2.0",
+        id: 17,
+        result: {
+          structuredContent: {
+            ok: true,
+            result: { ...metadata, kind: "render" },
+            error: null,
+          },
+        },
+      },
       {
         jsonrpc: "2.0",
         id: 17,
@@ -148,8 +188,23 @@ export function test_native_image_policy(): void {
       { type: "text", text: publicJson },
     ]);
     assert.notEqual(promoted.result.content, message.result.content);
-    assert.equal(addMcpNativeImage(message, delivery), message);
-    assert.equal(addMcpNativeImage(promoted, delivery), promoted);
+    for (const replay of [message, promoted]) {
+      const before: string = JSON.stringify(replay);
+      const refused: ReturnType<typeof addMcpNativeImage> = addMcpNativeImage(
+        replay,
+        delivery,
+      );
+      assert.ok("result" in refused);
+      assert.equal(refused.id, 17);
+      assert.equal(refused.result.isError, true);
+      assert.deepEqual(refused.result.structuredContent, failure);
+      assert.deepEqual(refused.result.content, [
+        { type: "text", text: failure.error.message },
+      ]);
+      assert.deepEqual(refused.result._meta, { observation: "keep metadata" });
+      assert.equal(JSON.stringify(refused).includes(payload.dataBase64), false);
+      assert.equal(JSON.stringify(replay), before);
+    }
     assert.equal(delivery.take(metadata.deliveryId, metadata, 17), undefined);
 
     const oversized: string = Buffer.alloc(1048577).toString("base64");
@@ -235,24 +290,54 @@ export function test_native_image_policy(): void {
         );
       }
 
-      const forgotten: IBlendiaMcpImageResult = delivery.stage(payload);
-      delivery.forget(payload.artifact.handle);
-      assert.equal(
-        delivery.take(forgotten.deliveryId, forgotten, "bounds"),
-        undefined,
-      );
-      const replaced: IBlendiaMcpImageResult = delivery.stage(payload);
-      delivery.retainSession("different-session");
-      assert.equal(
-        delivery.take(replaced.deliveryId, replaced, "bounds"),
-        undefined,
-      );
-      const closed: IBlendiaMcpImageResult = delivery.stage(payload);
-      delivery.close();
-      assert.equal(
-        delivery.take(closed.deliveryId, closed, "bounds"),
-        undefined,
-      );
+      for (const action of ["forget", "replace", "close"] as const) {
+        const retired: IBlendiaMcpImageResult = delivery.stage(payload);
+        if (action === "forget") delivery.forget(payload.artifact.handle);
+        else if (action === "replace")
+          delivery.retainSession("different-session");
+        else delivery.close();
+        assert.equal(
+          delivery.take(retired.deliveryId, retired, "bounds"),
+          undefined,
+        );
+        const retiredEnvelope: IBlendiaMcpSuccess<IBlendiaMcpImageResult> = {
+          ok: true,
+          result: retired,
+          error: null,
+        };
+        const retiredMessage: Parameters<typeof addMcpNativeImage>[0] =
+          Object.freeze({
+            jsonrpc: "2.0",
+            id: "bounds",
+            result: Object.freeze({
+              content: [
+                { type: "text", text: JSON.stringify(retiredEnvelope) },
+              ],
+              structuredContent: retiredEnvelope,
+              _meta: { observation: "retired metadata" },
+            }),
+          });
+        const before: string = JSON.stringify(retiredMessage);
+        const refused: ReturnType<typeof addMcpNativeImage> = addMcpNativeImage(
+          retiredMessage,
+          delivery,
+        );
+        assert.ok("result" in refused);
+        assert.equal(refused.id, "bounds");
+        assert.equal(refused.result.isError, true);
+        assert.deepEqual(refused.result.structuredContent, failure);
+        assert.deepEqual(refused.result.content, [
+          { type: "text", text: failure.error.message },
+        ]);
+        assert.deepEqual(refused.result._meta, {
+          observation: "retired metadata",
+        });
+        assert.equal(
+          JSON.stringify(refused).includes(payload.dataBase64),
+          false,
+        );
+        assert.equal(JSON.stringify(retiredMessage), before);
+      }
       assert.throws(
         (): IBlendiaMcpImageResult => delivery.stage(payload),
         /No active image delivery request/,
