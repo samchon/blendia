@@ -5,7 +5,7 @@ description: Runs Blendia's issue campaign through repeated full discovery, issu
 
 # Issue Campaign
 
-A cycle audits its named scope on one target baseline until a complete discovery round finds nothing meaningful, then lands every accepted issue in one pull request whose merge starts the next cycle. Follow only the phases the user authorized; an audit-only request publishes and pushes nothing. Report any necessary expansion beyond the named scope. The coordinator supervises subagents doing inspection, implementation, execution and review, with explicit path ownership and one Git/issue writer.
+A cycle audits its named scope on one target baseline until a complete discovery round finds nothing meaningful, then lands every accepted issue in one pull request whose merge starts the next cycle. Follow only the phases the user authorized; an audit-only request publishes and pushes nothing. Report any necessary expansion beyond the named scope. Follow the coordination and delegation authorized for the current task. When work is delegated, assign explicit path ownership, one Git/issue writer and an Overall Self-Review owner who reads the whole declared surface directly; specialist reports do not replace that review.
 
 ## Discovery
 
