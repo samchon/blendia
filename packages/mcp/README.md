@@ -6,7 +6,7 @@ Use an existing Blender installation from an MCP client through the same typed S
 
 This package is currently used from a source checkout and is not published. Install the workspace dependencies as described in the [project overview](../../README.md), enable the Blendia extension in Blender, and supply its port and token privately to the MCP process.
 
-Use an absolute checkout path in your client's stdio configuration. The example invokes the installed `ttsx` executable directly, avoiding package-manager banners on the JSON-RPC stream.
+Use absolute paths in your client's stdio configuration. Node first loads the package's environment shim, then the unchanged installed public `ttsx` executable and source entry. This works outside the checkout cwd without a build or manual TEMP assignment, and avoids package-manager banners on the JSON-RPC stream.
 
 ```json
 {
@@ -14,6 +14,8 @@ Use an absolute checkout path in your client's stdio configuration. The example 
     "blendia": {
       "command": "node",
       "args": [
+        "--require",
+        "C:/path/to/blendia/packages/mcp/nativeBootstrap.cjs",
         "C:/path/to/blendia/node_modules/ttsc/lib/launcher/ttsx.js",
         "--cwd",
         "C:/path/to/blendia/packages/mcp",
@@ -30,7 +32,7 @@ Use an absolute checkout path in your client's stdio configuration. The example 
 }
 ```
 
-Keep credentials in private client configuration. Connection options and headless executable paths are server configuration; tools do not accept credentials. The command writes JSON-RPC to stdout and generic process diagnostics to stderr.
+Keep credentials in private client configuration. Connection options and headless executable paths are server configuration; tools do not accept credentials. The shim is shipped as the public `@blendia/mcp/native-bootstrap` subpath and prepares process-local temporary storage before the compiler initializes, preserving healthy caller settings and selecting verified owned storage when necessary. It writes no protocol output; JSON-RPC stays on stdout and generic process diagnostics on stderr. See the [startup guide](../../docs/design/native-startup.md#supported-launch-paths) for scratch retention and verification limits.
 
 The first source launch may prepare the compiler's native plugins before the MCP handshake. A client's MCP startup timeout must allow that preparation; it is separate from Blender startup observation, script execution, and rendering deadlines. A timeout does not prove that a scene operation stopped.
 

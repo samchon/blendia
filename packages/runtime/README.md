@@ -2,6 +2,8 @@
 
 Run an existing project TypeScript file through `ttsc`'s `ttsx`. The runtime uses the current Node executable, the actual project directory, and an argument array without a shell. `ttsx` owns project discovery, type checking, transformations, source maps, and its private compilation cache.
 
+The runtime prepares a copied child environment before native initialization, preserving healthy caller temporary settings or automatically selecting verified process-owned storage. Supported outer CLI/MCP commands also prepare their own environment before loading public `ttsx`; an already-failed external compiler initialization cannot be repaired by importing this library later. See the [startup guide](../../docs/design/native-startup.md#supported-launch-paths) for the public preload and intentionally retained scratch. No manual TEMP path is needed for the supported routes.
+
 The `blendia run` command uses this package. It is not yet published to npm. Applications with the package available can also launch scripts directly:
 
 ```ts
@@ -32,7 +34,7 @@ The snapshot runs as a uniquely named sibling module with the same TypeScript su
 
 `ITextMacroResult` adds `origin`, `sourcePath`, `stagedPath`, `staging`, and optional `cleanupError` to the process result. An ordinary direct-launcher exit attempts removal of the runtime-owned staging file after comparing its full file identity. A signal, uncertain launch, changed path identity, or cleanup failure retains the file and reports the path. Creation failure does not establish file ownership; write or close failure after exclusive creation reports the owned retained path. Abrupt host termination can leave a staging file behind. Macros must not detach descendants that continue to rely on that temporary module; their lifetime is not controlled here.
 
-The script inherits standard input, standard output, standard error, and the process environment. `connection.port` and `connection.token`, when provided, override `BLENDIA_PORT` and `BLENDIA_TOKEN` for that child only. Otherwise existing values are inherited. The runtime opens no SDK connection; the script's `BlenderClient` owns its socket. Keep credentials in the environment rather than command arguments.
+The script inherits standard input, standard output, and standard error with a copied environment whose temporary storage has passed admission. `connection.port` and `connection.token`, when provided, override `BLENDIA_PORT` and `BLENDIA_TOKEN` for that child only; other values are inherited. The caller's environment object and global settings are not changed. The runtime opens no SDK connection; the script's `BlenderClient` owns its socket. Keep credentials in the environment rather than command arguments.
 
 `runProjectScript` resolves after the direct `ttsx` launcher closes, returning `{ code, signal }`. A spawn failure rejects. A zero code describes the launched program's exit status; it does not independently prove a Blender mutation completed. Source diagnostics remain on the inherited streams. There is no cancellation API, recursive process-tree shutdown guarantee, retry, or rollback. Run the CLI through the intended Node toolchain so `process.execPath` refers to that executable; this package does not install or discover another Node version.
 

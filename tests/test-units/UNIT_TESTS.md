@@ -1,5 +1,7 @@
 # First-party unit verification
 
+The native-environment case calls the real public selector against one uniquely owned physical directory. It verifies platform-selected temporary storage, verbatim copied settings, caller and inherited environment nonmutation, and the selector's check-allocation cleanup. It launches no compiler or child and does not simulate MSIX redirection or automatic fallback; those outcomes require actual default-host observations. Its cleanup touches only its verified empty directory and preserves any unexpected child or changed identity.
+
 Run `pnpm test` from the repository root, or `pnpm --filter @blendia/test-units start`, to execute every named case. Run `pnpm --filter @blendia/test-units build` separately for ordinary `ttsc --noEmit` diagnostics, `pnpm --filter @blendia/test-units lint` for configured declaration and correctness diagnostics, and `pnpm --filter @blendia/test-units evidence` for its behavioral checklist. These commands execute workspace sources without a preparatory product build.
 
 The DynamicExecutor entry discovers named cases under src/features, reports every failure, rejects an empty suite, and leaves a failing process status when any case fails. There is no case-selection grammar or synthetic runner test.
@@ -13,6 +15,7 @@ The DynamicExecutor entry discovers named cases under src/features, reports ever
 | test_render_artifacts | Caller-owned UUIDs, native-job variants, PNG provenance metadata, canonical base64 windows, exact offsets, progress, EOF, and byte bounds. |
 | test_script_logs | Incremental UTF-8, split-token redaction, stream tags, paging, retention gaps, immutable reads, and invalid cursor/budget refusals. |
 | test_script_job_state | Monotonic phases, terminal ownership, ordinary versus bootstrap/uncertain outcomes, copied snapshots, and bounded credential-free metadata. |
+| test_native_environment | Actual physical temporary-parent selection, verbatim copied settings, caller/process nonmutation, and removal of owned empty check allocations. |
 | test_bridge_envelopes | Decimal correlation IDs, exclusive success/failure arms, optional pre-authentication identity, and explicit effects. |
 | test_bridge_handshake | Protocol mismatch, safe generation, copied capabilities, and malformed session metadata. |
 | test_object_identity | Full-width object IDs, fresh snapshot identity, detached local vectors, and malformed native metadata. |

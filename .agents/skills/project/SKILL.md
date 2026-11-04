@@ -7,7 +7,7 @@ description: Defines Blendia scope, package and language boundaries, and workspa
 
 Blendia is a pnpm TypeScript monorepo that lets users and coding agents run project TypeScript against an existing Blender installation, including project scripts and macros launched through a Blender extension. Blender owns scene evaluation, modeling, rendering, and its UI. Node.js and `ttsc`'s `ttsx` own TypeScript execution. Three.js integration and reimplementing Blender as a web application are outside scope.
 
-Use TypeScript for packages and general development helpers. Use Python where execution must occur inside Blender against `bpy`, including extension registration, main-thread dispatch, UI integration, and API metadata extraction. A Blender fork or another embedded JavaScript engine is unnecessary for the planned execution model.
+Use TypeScript for packages and general development helpers. The compiler-independent CJS exception is limited to [pre-native environment preparation](../development/SKILL.md#pre-native-environment) before the public compiler initializes. Use Python where execution must occur inside Blender against `bpy`, including extension registration, main-thread dispatch, UI integration, and API metadata extraction. A Blender fork or another embedded JavaScript engine is unnecessary for the planned execution model.
 
 Local consumers execute source TypeScript without a build, under the [source and distribution contract](../development/SKILL.md#local-source-and-distribution). Package configuration, execution wrappers, and verification must preserve that contract.
 

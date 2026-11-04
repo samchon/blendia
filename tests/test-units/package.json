@@ -8,10 +8,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "ttsc --noEmit",
-    "lint": "ttsx ../../config/checkLint.ts",
-    "start": "ttsx src/index.ts",
-    "evidence": "evidence"
+    "build": "node --require ../../config/nativeBootstrap.cjs ../../node_modules/ttsc/lib/launcher/ttsc.js --noEmit",
+    "lint": "node --require ../../config/nativeBootstrap.cjs ../../node_modules/ttsc/lib/launcher/ttsx.js ../../config/checkLint.ts",
+    "start": "node --require ../../config/nativeBootstrap.cjs ../../node_modules/ttsc/lib/launcher/ttsx.js src/index.ts",
+    "evidence": "node --require ../../config/nativeBootstrap.cjs ../../node_modules/@wrtnlabs/evidence/lib/executable/evidence.js"
   },
   "author": "Samchon",
   "license": "MIT",
