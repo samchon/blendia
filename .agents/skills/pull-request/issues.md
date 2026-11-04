@@ -2,6 +2,8 @@
 
 Treat GitHub issues as the persistent record of research, decisions, open questions, implementation scope, and verification for this repository.
 
+Use [issue-campaign](../issue-campaign/SKILL.md) for repeated multi-issue discovery and delivery cycles. This guide owns each record's quality, duplication, consolidation and acceptance evidence.
+
 1. Search and read relevant existing issues, including closed issues, before creating new ones. Extend the existing issue when it represents the same work.
 2. Record substantive research with enough context to stand alone: the problem, user requirements, dated source links, relevant examples or reported experience, limitations, decisions, alternatives, and unresolved questions. Distinguish verified facts, external claims, proposals, and measured results.
 3. Keep an overarching tracking issue and focused actionable issues where the scope warrants them. Link dependencies and related work in both directions. Make each actionable issue's scope and acceptance criteria explicit.
