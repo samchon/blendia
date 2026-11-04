@@ -22,7 +22,7 @@ The current pnpm workspace contains `config`, `packages/*`, and two first-party 
 
 ```text
 blendia/
-  .agents/skills/                seven scoped skills and their linked guides
+  .agents/skills/                eight scoped skills and their linked guides
   .github/workflows/
   config/                       shared compiler, lint, and formatting support
   packages/{sdk,runtime,cli,mcp}/ SDK, shared execution, CLI, and MCP facade
@@ -113,9 +113,11 @@ Reference: [AutoMovie build CI](https://github.com/samchon/AutoMovie/blob/ba7f75
 
 ## Agent instructions and skills
 
-The repository now contains seven actual skills: project, development, contracts, documentation, prompting, review, and pull-request. [AGENTS.md](../AGENTS.md) routes the repository guidance and skill triggers. [CLAUDE.md](../CLAUDE.md) contains exactly `@AGENTS.md` plus the final newline. Supporting guides are directly linked siblings in the single `.agents/skills` tree. There are no duplicated `.claude/skills` or `.codex/skills` copies or skills junctions. This follows the inspected AutoMovie files rather than assuming checkout hardlinks are a portable instruction mechanism.
+The repository now contains eight actual skills: project, development, contracts, documentation, prompting, review, issue-campaign, and pull-request. [AGENTS.md](../AGENTS.md) routes the repository guidance and skill triggers. [CLAUDE.md](../CLAUDE.md) contains exactly `@AGENTS.md` plus the final newline. Supporting guides are directly linked siblings in the single `.agents/skills` tree. There are no duplicated `.claude/skills` or `.codex/skills` copies or skills junctions. This follows the inspected AutoMovie files rather than assuming checkout hardlinks are a portable instruction mechanism.
 
 The [prompting skill](../.agents/skills/prompting/SKILL.md) owns frontmatter, triggers, concise routing, supporting-guide layout, and single rule ownership. The [review skill](../.agents/skills/review/SKILL.md) owns complete-change review. The [pull-request skill](../.agents/skills/pull-request/SKILL.md) owns Draft-first issue/branch/PR setup and delivery, including the user's standing instruction to merge after a clean self-review and required green CI on the current head. Product-specific film skills and model-branded prompting links were not copied.
+
+The [issue-campaign skill](../.agents/skills/issue-campaign/SKILL.md) adapts [ttsc's campaign at `10c9863e`](https://github.com/samchon/ttsc/blob/10c9863e171e6082cd2b2756c8d319f5ff0c53e2/.agents/skills/issue-campaign/SKILL.md): repeated discovery on one baseline, a frozen accepted issue set, one PR per cycle, per-commit and integrated review, and another full round after merge. Blendia's existing source-first validation, applicable contracts, delegated ownership and evidence-retention rules govern execution; ttsc's Go/build, formatter and release policies are not imported. General issue quality remains in the [issue-record guide](../.agents/skills/pull-request/issues.md), review modes belong to the review skill, and Git/PR delivery remains with pull-request.
 
 The [contracts skill](../.agents/skills/contracts/SKILL.md) owns the required `@wrtnlabs/evidence` checker, package-local selectors, grounded answers, and applicability. Select a declaration and question because it owns a material requirement; neither all common/performance questions nor a replacement universal question applies to every declaration. Performance contracts belong only to operations with material algorithm, reuse, or resource-lifetime requirements. DTOs, simple parsers, and configuration do not need performance boilerplate, invented `O(1)` assurances, or repeated exclusions. Preserve useful JSDoc and select meaningful first-party unit contracts. A package with no material claim has no claim to prove; report actual selection and results without manufacturing respondents or removing a real obligation to obtain a pass.
 

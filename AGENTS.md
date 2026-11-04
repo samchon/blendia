@@ -26,4 +26,5 @@ For already-authorized cleanup of verified task-owned paths, use PowerShell `Rem
 - [documentation](.agents/skills/documentation/SKILL.md): writing maintained documentation, comments, or examples.
 - [prompting](.agents/skills/prompting/SKILL.md): changing agent routers, skills, or the storage of session instructions.
 - [review](.agents/skills/review/SKILL.md): any review or self-review.
+- [issue-campaign](.agents/skills/issue-campaign/SKILL.md): broad audits or repeated discovery, issue publication, implementation, and delivery cycles.
 - [pull-request](.agents/skills/pull-request/SKILL.md): maintaining issues or preparing, opening, updating, and merging a pull request.
