@@ -39,11 +39,39 @@ function setTemporaryDirectory(environment, directory) {
   environment.TEMP = environment.TMP = environment.TMPDIR = directory;
 }
 
+/** Reject paths whose meaning depends on the current directory or current drive. */
+function fullyQualified(candidate) {
+  if (typeof candidate !== "string" || candidate.length === 0) return false;
+  if (process.platform !== "win32") return path.posix.isAbsolute(candidate);
+
+  // Windows isAbsolute also accepts paths rooted only at the current drive.
+  // Require a drive and separator, or both the UNC server and share.
+  return (
+    /^[A-Za-z]:[\\/]/.test(candidate) ||
+    /^[\\/]{2}[^\\/]+[\\/][^\\/]+(?:[\\/]|$)/.test(candidate)
+  );
+}
+
+function temporarySettingsAgree(environment, physicalDirectory) {
+  try {
+    return ["TEMP", "TMP", "TMPDIR"].every((name) => {
+      const value = readChildEnvironment(environment, name);
+      return (
+        fullyQualified(value) &&
+        fs.realpathSync.native(value) === physicalDirectory
+      );
+    });
+  } catch {
+    return false;
+  }
+}
+
 /** Check the same physical parent/child boundary the compiler will enforce. */
 function checkParent(candidate, retainedDirectories) {
+  if (!fullyQualified(candidate)) return undefined;
   let allocation;
   try {
-    const physicalParent = fs.realpathSync.native(path.resolve(candidate));
+    const physicalParent = fs.realpathSync.native(candidate);
     directoryIdentity(physicalParent);
     allocation = fs.mkdtempSync(
       path.join(physicalParent, ".blendia-native-check-"),
@@ -71,9 +99,11 @@ function checkParent(candidate, retainedDirectories) {
 
 /**
  * Copy the caller's environment before the public native launcher starts.
- * Healthy temporary settings are preserved verbatim. An unsafe allocation is
- * retained, never adopted as a fallback or recursively removed. The random
- * fallback is process-owned and intentionally retained for unknown descendants.
+ * Coherent fully-qualified settings are preserved verbatim. Node and Go choose
+ * different temporary variables, so missing or conflicting secondary settings
+ * are aligned to the selected healthy path. Cwd/drive-dependent paths use owned
+ * storage instead of being interpreted against this parent's working directory.
+ * Uncertain allocations and process-owned fallbacks are retained for descendants.
  */
 function prepareNativeEnvironment(environment = process.env) {
   const copied = { ...environment };
@@ -85,8 +115,12 @@ function prepareNativeEnvironment(environment = process.env) {
         (readChildEnvironment(copied, "SystemRoot") ||
           readChildEnvironment(copied, "windir")) + "\\temp"
       : copied.TMPDIR || copied.TMP || copied.TEMP || "/tmp";
-  if (checkParent(inherited, retainedDirectories) !== undefined)
+  const admitted = checkParent(inherited, retainedDirectories);
+  if (admitted !== undefined) {
+    if (!temporarySettingsAgree(copied, admitted))
+      setTemporaryDirectory(copied, inherited);
     return { environment: copied, retainedDirectories };
+  }
 
   if (fallbackDirectory !== undefined) {
     try {
@@ -109,7 +143,10 @@ function prepareNativeEnvironment(environment = process.env) {
 
   let allocated;
   try {
-    const parent = fs.realpathSync.native(os.homedir());
+    const home = os.homedir();
+    if (!fullyQualified(home))
+      throw new Error("blendia: native scratch home is not fully qualified.");
+    const parent = fs.realpathSync.native(home);
     const parentIdentity = directoryIdentity(parent);
     if (
       typeof process.getuid === "function" &&
