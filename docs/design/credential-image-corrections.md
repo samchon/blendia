@@ -1,0 +1,5 @@
+# Credential and native image correction scope
+
+Windows captured jobs and isolated headless launches must select, redact and remove effective inherited connection credentials consistently, including differently cased aliases in copied environments. Missing or expired MCP native image delivery must produce a correlated non-success without exposing private bytes or retrying the operation. Support and startup guides must reflect accepted PR18 verification while retaining historical causal limits.
+
+This planning seed establishes the Draft before implementation. The correction and acceptance batch is maintained in [execution issue #3](https://github.com/samchon/blendia/issues/3), with [MCP #5](https://github.com/samchon/blendia/issues/5) and [validation #6](https://github.com/samchon/blendia/issues/6). Implementation, meaningful first-party regressions, complete affected checks and exact-head review/CI remain pending; earlier functional success does not prove these corrections or the original historical diagnosis.
