@@ -14,7 +14,67 @@ No global daemon, durable job lookup between CLI invocations, background-start/i
 
 ## First-run preparation
 
-Install the native TypeScript compiler in the script's project with `npm install --save-dev typescript`, keeping optional dependencies enabled, together with its SDK, imported npm packages, and configured plugins. Local Blendia commands run source without a package build and prepare their native temporary environment before the public toolchain starts; see the [startup guide](native-startup.md#supported-launch-paths). The [CLI guide](../../packages/cli/README.md) and [extension setup](../../blender/extension/README.md#run-typescript-from-blender) identify execution tools and project settings.
+The script's project must provide its native TypeScript compiler, SDK, imported packages and configured plugins. The source-checkout setup below supplies those dependencies without publishing packages or building `lib`. Keep optional dependencies enabled so the native compiler can be installed. Local Blendia commands prepare their native temporary environment before the unchanged public toolchain starts; see the [startup guide](native-startup.md#supported-launch-paths). The [CLI guide](../../packages/cli/README.md) and [extension setup](../../blender/extension/README.md#run-typescript-from-blender) identify execution tools and project settings.
+
+### Set up an external source-checkout project
+
+Use the same PowerShell session for these blocks, replacing the two paths. Choose a new project directory outside the checkout, beneath an existing parent; the example intentionally refuses an existing directory. For an existing project, preserve its files and configuration instead of running the initialization steps over them. Prepare the checkout's committed dependencies first, then read its installed compiler and Node type versions rather than guessing compatible versions:
+
+```powershell
+$blendiaCheckout = (Resolve-Path -LiteralPath 'D:/path/to/blendia').Path
+Set-Location -LiteralPath $blendiaCheckout
+pnpm install --frozen-lockfile
+
+$typescriptVersion = (Get-Content -LiteralPath (Join-Path $blendiaCheckout 'node_modules/typescript/package.json') -Raw | ConvertFrom-Json).version
+$nodeTypesVersion = (Get-Content -LiteralPath (Join-Path $blendiaCheckout 'node_modules/@types/node/package.json') -Raw | ConvertFrom-Json).version
+$projectDirectory = 'D:/projects/프로젝트 space'
+New-Item -ItemType Directory -Path $projectDirectory -ErrorAction Stop | Out-Null
+Set-Location -LiteralPath $projectDirectory
+pnpm init
+pnpm add --save-dev "typescript@$typescriptVersion" "@types/node@$nodeTypesVersion"
+pnpm link (Join-Path $blendiaCheckout 'packages/sdk')
+New-Item -ItemType Directory -Path (Join-Path $projectDirectory 'src') | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $projectDirectory 'outputs') | Out-Null
+```
+
+The direct-directory [pnpm link](https://pnpm.io/10.x/cli/link) uses the SDK's existing source package without a global link or hand-created junction. The checkout's [pinned pnpm implementation](https://github.com/pnpm/pnpm/blob/v10.6.4/pkg-manager/plugin-commands-installation/src/link.ts#L143-L176) records a `link:` dependency and matching override in the consumer's `package.json` and updates that project's lockfile. The SDK keeps its checkout-owned dependencies, which is why the checkout install comes first. Keep the checkout in place, or rerun the link command with its new location after moving it. Nothing here rewrites the SDK's source exports or installs it from npm.
+
+Create `tsconfig.json` in the new project with the following content. This is the application's configuration, not another repository checking project. It preserves normal Node imports and leaves `rootDir` unset so the linked SDK's TypeScript sources are not artificially confined to the application's source directory:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"]
+}
+```
+
+Save your script as `src/scene.ts`; the [SDK scene example](../../packages/sdk/README.md) is a complete starting point that takes PNG and `.blend` destination arguments. Install any additional packages your chosen script imports and retain any plugins its configuration declares. For example, a script importing `typia` needs that package and its compiler peer in the external project; the following optional step selects both versions from the prepared checkout without changing Blendia's selected launcher. The SDK scene example itself does not require this step:
+
+```powershell
+$typiaVersion = (Get-Content -LiteralPath (Join-Path $blendiaCheckout 'packages/mcp/node_modules/typia/package.json') -Raw | ConvertFrom-Json).version
+$ttscVersion = (Get-Content -LiteralPath (Join-Path $blendiaCheckout 'node_modules/ttsc/package.json') -Raw | ConvertFrom-Json).version
+pnpm add --save-dev "typia@$typiaVersion" "ttsc@$ttscVersion"
+```
+
+Start the extension in Blender and privately set the connection environment using the [extension instructions](../../blender/extension/README.md#install-and-start), with no other SDK client holding the writer lease. Return to the checkout to invoke its public source CLI; the script still uses the external project's cwd, configuration and dependencies:
+
+```powershell
+Set-Location -LiteralPath $blendiaCheckout
+pnpm blendia doctor --cwd "$projectDirectory" --project tsconfig.json
+$pngPath = Join-Path $projectDirectory 'outputs/scene.png'
+$blendPath = Join-Path $projectDirectory 'outputs/scene.blend'
+pnpm blendia run --cwd "$projectDirectory" --project tsconfig.json src/scene.ts -- "$pngPath" "$blendPath"
+```
+
+Doctor should locate the selected checkout's SDK metadata and the external project's compiler/configuration while retaining `execution: "not-tested"`; it does not prove imports, native preparation or Blender execution. The subsequent script must actually connect, run its SDK operations and report its own result. The scene example explicitly saves its outputs and disconnects; existing destinations are refused by default. For a separate owned Blender process, use the same prepared project with the [headless workflow](headless-projects.md) instead of GUI credentials. Neither route requires a TypeScript package build.
 
 The first native transformer run can prepare source plugins and a cold Go cache before user TypeScript begins. Preparation can require network access for dependencies not already available and can take several minutes; installing a platform compiler package does not establish that a project's native plugins are prepared. Later invocations can still be expensive. Read bootstrap output and the final observed outcome rather than treating a quiet interval as completion or launching another copy. The metadata doctor does not execute or verify this preparation, and the source CLI itself must bootstrap before reporting metadata.
 
@@ -24,13 +84,13 @@ PR10's first native emit was manually interrupted after Suspended thread snapsho
 
 The process-local [startScriptJob](../../packages/runtime/src/startScriptJob.ts) accepts [IScriptJobRequest](../../packages/runtime/src/IScriptJobRequest.ts) and returns a [ScriptJob](../../packages/runtime/src/ScriptJob.ts). Named file and Text variants use `kind: "file"` with `IProjectScriptOptions`, or `kind: "text"` with `ITextMacroOptions`, in an `options` field snapshotted before deferred effects. Phases are `starting`, `running`, `draining`, and `terminal`; `running` means the direct launcher spawned, not that user TypeScript began. Outcomes distinguish `exited`, `launch-failed`, and `unknown`. Admission is capped at 16 retained records, including terminal records until explicit close. No active eviction, TTL, cancellation, or cross-CLI lookup is promised; this memory bound does not bypass Blender's exclusive writer/BUSY contract.
 
-| API | Contract |
-| --- | --- |
-| `getScriptJob(id)` | Return this owner's retained record, or `undefined` for an unknown/released ID. Another CLI process cannot retrieve it. |
-| `job.inspect()` | Return `IScriptJobSnapshot` with IDs, phase/outcome, optional result/diagnostic, `metadataTruncated`, and earliest/tail cursors. |
-| `job.readLog(cursor = 0, byteLimit = 16384)` | Return `IScriptLogPage` for this job's entry sequence. |
-| `await job.wait()` | Resolve to a terminal snapshot after bounded output/cleanup observation, without certifying descendant shutdown. |
-| `job.close()` | Release terminal state/log memory; active close is refused and kills no process. |
+| API                                          | Contract                                                                                                                         |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `getScriptJob(id)`                           | Return this owner's retained record, or `undefined` for an unknown/released ID. Another CLI process cannot retrieve it.          |
+| `job.inspect()`                              | Return `IScriptJobSnapshot` with IDs, phase/outcome, optional result/diagnostic, `metadataTruncated`, and earliest/tail cursors. |
+| `job.readLog(cursor = 0, byteLimit = 16384)` | Return `IScriptLogPage` for this job's entry sequence.                                                                           |
+| `await job.wait()`                           | Resolve to a terminal snapshot after bounded output/cleanup observation, without certifying descendant shutdown.                 |
+| `job.close()`                                | Release terminal state/log memory; active close is refused and kills no process.                                                 |
 
 Captured logs retain at most 64 KiB and 1024 entries; a page returns at most 16 KiB and 128 entries. Entries contain `cursor`, `stream` (`stdout` or `stderr`), and up to 2048 UTF-8 bytes of `text`. A cursor is a safe integer at least zero; a cursor beyond the tail is refused. `byteLimit` is a safe integer from 4096 through 16384. Pages contain `entries`, `earliestCursor`, `nextCursor`, `gap`, and `hasMore`. `nextCursor` names the first unreturned entry, not a byte offset; gap/hasMore distinguish retention loss from available data. UTF-8 boundaries and known-token redaction are preserved across chunks. Actual child TypeScript diagnostics and stacks remain in bounded logs after redaction; credential-bearing discovery/probe errors and internal diagnostics use fixed sanitized findings. Public state never serializes original options/environment or raw descriptor JSON. Display metadata is capped at 4096 UTF-8 bytes without an added suffix; the `metadataTruncated` flag reports shortening. A shortened displayed staging path is not an exact cleanup path. Internal ownership uses the full path, and inherited API results are unchanged.
 
@@ -54,11 +114,11 @@ pnpm blendia doctor --cwd /path/to/project --project tsconfig.json
 
 The named [IScriptMachineEvent](../../packages/cli/src/IScriptMachineEvent.ts) union contains these envelopes, each at most 65536 UTF-8 bytes including its terminating LF:
 
-| `type` | Fields and meaning |
-| --- | --- |
-| `snapshot` | `snapshot` carries observed phase and its `id`/`ownerId`. |
-| `log` | `id`, `ownerId`, and `entry` carry one cursor/stream/text entry. |
-| `gap` | `id`, `ownerId`, `earliestCursor`, and `nextCursor` explicitly advance past lost retention. |
+| `type`     | Fields and meaning                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------- |
+| `snapshot` | `snapshot` carries observed phase and its `id`/`ownerId`.                                   |
+| `log`      | `id`, `ownerId`, and `entry` carry one cursor/stream/text entry.                            |
+| `gap`      | `id`, `ownerId`, `earliestCursor`, and `nextCursor` explicitly advance past lost retention. |
 | `terminal` | `snapshot` commits terminal observation after the emitted cursor reaches the terminal tail. |
 
 The renderer awaits each stdout write while the core continues draining into its bounded ring. Consumers correlate both IDs and follow cursors, including gaps. Outer bootstrap diagnostics may precede machine events; before the first snapshot, Blender shows CLI bootstrapping rather than claiming the user's script started. An outer CLI exit alone does not replace an intact correlated terminal envelope.

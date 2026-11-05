@@ -12,7 +12,7 @@ The Blender extension includes preview actions for running project files and act
 
 ## Run a project script
 
-Enable the [Blender extension](blender/extension/README.md) and configure its connection as described in the [CLI guide](packages/cli/README.md). Your script's project needs the native TypeScript compiler (`npm install --save-dev typescript`, with optional dependencies enabled) and the SDK/npm packages it imports. Blendia supplies the `ttsx` launcher.
+Enable the [Blender extension](blender/extension/README.md) and configure its connection as described in the [CLI guide](packages/cli/README.md). Follow the [external-project setup](docs/design/script-jobs.md#set-up-an-external-source-checkout-project) to connect this checkout's unpublished SDK and prepare your project's compiler and dependencies. Blendia supplies the public `ttsx` launcher.
 
 From the repository with its dependencies installed, run the source CLI directly:
 

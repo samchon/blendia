@@ -2,7 +2,7 @@
 
 Run project TypeScript against an existing Blender session. Create and inspect objects, author bounded meshes and materials, position cameras and lights, render a native PNG, and save explicit PNG and .blend results.
 
-This package is currently available in the Blendia workspace and has not been published to npm. For an existing GUI session, enable the Blendia extension and start its bridge, then run the project script through `blendia run` or supply the displayed port and token to `BlenderClient.connect({ port, token })`. The [owned headless workflow](../../docs/design/headless-projects.md) starts a separate Blender process and supplies its private connection to the same project TypeScript. Treat the token as a secret.
+This package is currently available in the Blendia workspace and has not been published to npm. Use the [external-project setup](../../docs/design/script-jobs.md#set-up-an-external-source-checkout-project) to link its source into a separate project without a build. For an existing GUI session, enable the Blendia extension and start its bridge, then run the project script through `blendia run` or supply the displayed port and token to `BlenderClient.connect({ port, token })`. The [owned headless workflow](../../docs/design/headless-projects.md) starts a separate Blender process and supplies its private connection to the same project TypeScript. Treat the token as a secret.
 
 The following script creates a pyramid, assigns an opaque material, selects a camera, lights the scene, and saves both outputs. Pass the PNG and .blend destination paths as its two script arguments. Their parent directories must already exist; existing files are preserved unless `overwrite: true` is explicitly supplied.
 

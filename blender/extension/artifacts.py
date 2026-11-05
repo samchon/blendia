@@ -7,6 +7,7 @@ import struct
 import tempfile
 import time
 import uuid
+import zlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -58,14 +59,11 @@ class ArtifactStore:
         if not stat.S_ISREG(information.st_mode) or not 33 <= information.st_size <= MAX_PNG_BYTES:
             raise BridgeError("LIMIT_EXCEEDED", "The native PNG is missing or exceeds 32 MiB", "possible")
         with path.open("rb") as stream:
-            header = stream.read(33)
-        if header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
-            raise BridgeError("IO_ERROR", "The native output is not a PNG", "possible")
-        width, height = struct.unpack(">II", header[16:24])
-        if not 1 <= width <= 4096 or not 1 <= height <= 4096:
-            raise BridgeError("LIMIT_EXCEEDED", "The native PNG dimensions exceed the artifact limit", "possible")
-        if width != job["width"] or height != job["height"]:
-            raise BridgeError("OUTCOME_UNKNOWN", "The native PNG dimensions do not match this render", "possible")
+            if self._identity(os.fstat(stream.fileno())) != self._identity(information):
+                raise self._png_error("The native output changed before validation")
+            width, height = self._validate_png(stream, information.st_size, job)
+            if self._identity(os.fstat(stream.fileno())) != self._identity(information):
+                raise self._png_error("The native output changed during validation")
         identifier = uuid.uuid4().hex
         target = self.directory / f"artifact-{identifier}.png"
         os.rename(path, target)
@@ -79,6 +77,106 @@ class ArtifactStore:
                                     "expires": time.monotonic() + ARTIFACT_TTL,
                                     "identity": self._identity(target.stat())}
         return metadata
+
+    @staticmethod
+    def _validate_png(stream, size, job):
+        """Check complete owned RGBA output without reconstructing its pixel colors."""
+        if stream.read(8) != b"\x89PNG\r\n\x1a\n":
+            raise ArtifactStore._png_error("Missing PNG signature")
+        prefix = stream.read(8)
+        if len(prefix) != 8 or struct.unpack(">I4s", prefix) != (13, b"IHDR"):
+            raise ArtifactStore._png_error("Missing initial IHDR")
+        header, checksum = stream.read(13), stream.read(4)
+        if (len(header) != 13 or len(checksum) != 4
+                or zlib.crc32(b"IHDR" + header) != struct.unpack(">I", checksum)[0]):
+            raise ArtifactStore._png_error("Incomplete or corrupt IHDR")
+        width, height = struct.unpack(">II", header[:8])
+        if not 1 <= width <= 4096 or not 1 <= height <= 4096:
+            raise BridgeError("LIMIT_EXCEEDED", "The native PNG dimensions exceed the artifact limit", "possible")
+        if width != job["width"] or height != job["height"]:
+            raise BridgeError("OUTCOME_UNKNOWN", "The native PNG dimensions do not match this render", "possible")
+
+        # NativeRender fixes 8-bit RGBA; its PNG writer emits non-interlaced rows.
+        if header[8:] != b"\x08\x06\x00\x00\x00":
+            raise ArtifactStore._png_error("PNG differs from the owned RGBA format")
+        row_bytes = width * 4 + 1
+        expected = row_bytes * height
+        decoder = zlib.decompressobj()
+        decoded = 0
+        seen_data = False
+        data_finished = False
+        seen_palette = False
+        while stream.tell() < size:
+            prefix = stream.read(8)
+            if len(prefix) != 8:
+                raise ArtifactStore._png_error("Incomplete chunk header")
+            length, kind = struct.unpack(">I4s", prefix)
+            if (length > size - stream.tell() - 4
+                    or any(not (65 <= letter <= 90 or 97 <= letter <= 122) for letter in kind)
+                    or kind[2] & 32):
+                raise ArtifactStore._png_error("Invalid chunk bounds or type")
+            if kind == b"IDAT":
+                if data_finished:
+                    raise ArtifactStore._png_error("Image data chunks are not consecutive")
+                seen_data = True
+            else:
+                data_finished = seen_data
+                if kind == b"PLTE":
+                    if seen_palette or seen_data or not 0 < length <= 768 or length % 3:
+                        raise ArtifactStore._png_error("Invalid optional palette")
+                    seen_palette = True
+                elif kind == b"IEND":
+                    if length or not seen_data:
+                        raise ArtifactStore._png_error("Invalid image ending")
+                elif not kind[0] & 32:
+                    raise ArtifactStore._png_error("Unexpected critical chunk")
+            checksum = zlib.crc32(kind)
+            remaining = length
+            while remaining:
+                block = stream.read(min(65536, remaining))
+                if not block:
+                    raise ArtifactStore._png_error("Truncated chunk data")
+                remaining -= len(block)
+                checksum = zlib.crc32(block, checksum)
+                if kind == b"IDAT":
+                    decoded = ArtifactStore._inflate_png(decoder, block, decoded, expected, row_bytes)
+            checksum_bytes = stream.read(4)
+            if len(checksum_bytes) != 4 or checksum != struct.unpack(">I", checksum_bytes)[0]:
+                raise ArtifactStore._png_error("Incomplete or corrupt chunk checksum")
+            if kind == b"IEND":
+                if stream.tell() != size or not decoder.eof or decoded != expected:
+                    raise ArtifactStore._png_error("Incomplete image data or trailing content")
+                return width, height
+        raise ArtifactStore._png_error("Missing IEND")
+
+    @staticmethod
+    def _inflate_png(decoder, block, total, expected, row_bytes):
+        """Bound inflation by dimensions and validate scanline framing, not pixels."""
+        if decoder.eof:
+            return total
+        try:
+            while True:
+                limit = min(65536, expected - total + 1)
+                output = decoder.decompress(block, limit)
+                if total + len(output) > expected:
+                    raise ArtifactStore._png_error("Image data exceeds the declared dimensions")
+                if any(output[index] > 4 for index in range((-total) % row_bytes, len(output), row_bytes)):
+                    raise ArtifactStore._png_error("Invalid scanline filter")
+                total += len(output)
+
+                # PNG permits padding after the zlib stream; never retain more input.
+                if decoder.eof:
+                    return total
+                block = decoder.unconsumed_tail
+                if not block and len(output) < limit:
+                    return total
+        except zlib.error as error:
+            raise ArtifactStore._png_error("Corrupt compressed image data") from error
+
+    @staticmethod
+    def _png_error(message):
+        """Report invalid native bytes without certifying a retained artifact."""
+        return BridgeError("IO_ERROR", message, "possible")
 
     def read(self, params):
         """Read a bounded range, including an empty EOF page at exactly byte length."""

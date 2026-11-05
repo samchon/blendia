@@ -4,16 +4,16 @@ Tracking: [validation #6](https://github.com/samchon/blendia/issues/6) and [PR #
 
 ## Two source test modules
 
-| Workspace | Execute from repository root | Scope |
-| --- | --- | --- |
-| `tests/test-units` / `@blendia/test-units` | `pnpm test:units` or `pnpm test` | Nineteen named first-party cases, with no Blender, sockets, or child processes |
-| `tests/test-blender` / `@blendia/test-blender` | `pnpm test:blender` | Six sequential actual-engine behavior groups after native ZIP installation verification |
+| Workspace                                      | Execute from repository root     | Scope                                                                                                                                  |
+| ---------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/test-units` / `@blendia/test-units`     | `pnpm test:units` or `pnpm test` | Named first-party cases in the [current inventory](../../tests/test-units/UNIT_TESTS.md), with no Blender, sockets, or child processes |
+| `tests/test-blender` / `@blendia/test-blender` | `pnpm test:blender`              | Six sequential actual-engine behavior groups after native ZIP installation verification                                                |
 
 Both modules run `src/index.ts` through public `ttsx` after the [pre-native environment step](native-startup.md#supported-launch-paths). `pnpm test:types` checks both existing test tsconfigs through ordinary `ttsc --noEmit`; `test:units:types` and `test:blender:types` select one. `pnpm lint`, `pnpm run format:check`, and `pnpm run evidence` have their separate development roles. No product build, compiled fallback, or extra checking tsconfig is a prerequisite. See [conventions](../conventions.md#compiler-exports-and-commands) for the complete workspace command contract.
 
 ## First-party units
 
-The [unit inventory](../../tests/test-units/UNIT_TESTS.md) preserves the prior eighteen cases, including two MCP-owned logic cases and nine added SDK cases, and adds the actual native-environment policy case for nineteen named cases. They exercise CLI argument ownership, SDK framing/admission/response validation, runtime state/logs, native-image delivery policy, MCP scene representation, and healthy temporary-parent/environment-copy/check-allocation ownership using real filesystem operations. That last case does not certify unsafe redirected-host fallback or compiler execution. The MCP cases observe first-party logic; they do not test generated schemas, upstream typia, protocol integration, or host image consumption. Counts describe authored scope; new outcomes remain in the tracker.
+The [unit inventory](../../tests/test-units/UNIT_TESTS.md) owns the current named-case list and each case's first-party observations; consult it rather than a duplicated count or historical increment list. The cases exercise CLI argument ownership, SDK framing/admission/response validation, runtime state and logs, native-image delivery policy and MCP scene representation. Native-environment policy observes coherent temporary paths, caller copies and owned filesystem checks; the separate connection-environment case observes credential aliases and overrides, fresh headless credential removal, copied inputs and canary redaction through real log/state owners. Neither case launches a child or compiler, changes global process state, or certifies unsafe host redirection. MCP cases do not establish generated schemas, upstream typia, protocol integration or host image consumption. Authored scope and revision-specific execution results remain separate.
 
 SDK sparse-array/finite-value admission and runtime headless sparse string-array admission are separate production boundaries in the same indexed-validation family. Their regressions require malformed inputs to fail before transmission or prerequisite filesystem access. Array length and checks that skip missing indices are insufficient. These cases preserve real numeric/string admission and detached ownership rather than inventing test-only APIs or artificial child processes.
 
@@ -33,14 +33,14 @@ The first two environment variables are required. The output parent is optional 
 
 Before scenarios, the suite invokes Blender's official extension build/install commands, installs the actual ZIP into an isolated offline USER repository, verifies native `bl_ext` registration and disable/enable behavior, compares installed payload members with the ZIP, and checks the license against the repository root. Only that verified installed root supplies the scenario bootstrap. Installation failure stops the suite; there is no source-import fallback. Native extension packaging is separate from compiling TypeScript distribution output.
 
-| Behavior group | Actual observations |
-| --- | --- |
-| Scene roundtrip | CPU Cycles PNG, SDK chunk/export agreement, native decoded pixel variation, saved `.blend` reopening, and independent geometry/material/camera/light/settings readback |
-| Session ownership | Writer-lease refusal/reacquisition and object identity across real reconnect and fresh owned sessions |
-| Shared material refusal | Rejection of assignment to a genuinely shared mesh, with independent native state inspection |
-| Render admission | No-camera refusal and duplicate caller-ID admission against the real engine |
-| Artifact capacity | Four-artifact capacity and explicit release using small native CPU renders |
-| Output publication | PNG/native-copy conflicts, explicit overwrite, persistent user outputs, and preserved preexisting backups |
+| Behavior group          | Actual observations                                                                                                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scene roundtrip         | CPU Cycles PNG, SDK chunk/export agreement, native decoded pixel variation, saved `.blend` reopening, and independent geometry/material/camera/light/settings readback |
+| Session ownership       | Writer-lease refusal/reacquisition and object identity across real reconnect and fresh owned sessions                                                                  |
+| Shared material refusal | Rejection of assignment to a genuinely shared mesh, with independent native state inspection                                                                           |
+| Render admission        | No-camera refusal and duplicate caller-ID admission against the real engine                                                                                            |
+| Artifact capacity       | Four-artifact capacity and explicit release using small native CPU renders                                                                                             |
+| Output publication      | PNG/native-copy conflicts, explicit overwrite, persistent user outputs, and preserved preexisting backups                                                              |
 
 The main scene uses 128-by-128 pixels and eight CPU samples; resource-admission renders use 32-by-32 pixels. An independent native load inspects real geometry, shading inputs, camera aim, lights, saved settings, and decoded image data. SDK self-reports alone are insufficient, and PNG hashes are not required to match across machines, versions, or repeated renders. This is engine automation, not graphical click automation.
 
